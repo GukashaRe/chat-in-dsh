@@ -9,6 +9,7 @@
     <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/YinkaiYu/chat-in-dsh?style=flat-square" /></a>
     <img alt="Based on official chat-demo" src="https://img.shields.io/badge/based_on-official%20chat--demo-2F6FEB?style=flat-square" />
     <a href="https://github.com/deepseek-ai/deepseek-harness"><img alt="powered by dsh" src="https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white" /></a>
+    <a href="https://www.dsh.so/artifact/chat-in-dsh/"><img alt="dsh.so" src="https://cdn.dsh.so/badge/chat-in-dsh.svg" /></a>
   </p>
   <p><a href="README.md">简体中文</a> · English</p>
 </div>
