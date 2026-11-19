@@ -119,10 +119,10 @@ index 7fbb107..af18578 100644
      const spaceBelow = window.innerHeight - rect.bottom - offset - VIEWPORT_PADDING
  
 diff --git a/src/components/base/icons.tsx b/src/components/base/icons.tsx
-index 25f10ea..8045573 100644
+index 25f10ea..7c2ed03 100644
 --- a/src/components/base/icons.tsx
 +++ b/src/components/base/icons.tsx
-@@ -523,3 +523,84 @@ export const IconToastError16 = () => (
+@@ -523,3 +523,129 @@ export const IconToastError16 = () => (
      />
    </svg>
  )
@@ -207,6 +207,52 @@ index 25f10ea..8045573 100644
 +    />
 +  </svg>
 +)
++export const IconBranch10 = () => (
++  <svg width={10} height={10} viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path
++      fillRule="evenodd"
++      clipRule="evenodd"
++      d="M8.17261 0.857422C8.80289 0.857551 9.31384 1.36911 9.31396 1.99939C9.31388 2.6297 8.80291 3.14062 8.17261 3.14075C7.68546 3.14075 7.27034 2.83545 7.10632 2.40588H2.72217C2.99623 2.66524 3.22413 2.97763 3.38562 3.33423L4.44153 5.66699C4.92829 6.74205 5.9694 7.45163 7.13684 7.52307C7.31783 7.13171 7.7132 6.85965 8.17261 6.85962C8.8027 6.85978 9.31393 7.37085 9.31396 8.00098C9.31394 8.63111 8.80271 9.14217 8.17261 9.14233C7.65835 9.1423 7.22335 8.80188 7.08069 8.33423C5.61675 8.24232 4.31238 7.35064 3.70178 6.00208L2.64526 3.66931C2.29689 2.90008 1.53049 2.40588 0.686035 2.40588V1.5929C0.691659 1.5929 0.697506 1.59347 0.703125 1.59351L7.10632 1.5929C7.27039 1.16332 7.68554 0.857422 8.17261 0.857422ZM8.17261 7.67261C7.99114 7.67264 7.84428 7.8195 7.84424 8.00098C7.84426 8.18246 7.99113 8.32992 8.17261 8.32996C8.35398 8.32979 8.50157 8.18238 8.50159 8.00098C8.50155 7.81958 8.35397 7.67277 8.17261 7.67261ZM8.17261 1.67041C7.99095 1.67041 7.84375 1.81776 7.84363 1.99939C7.84372 2.18105 7.99093 2.32837 8.17261 2.32837C8.35418 2.32824 8.5015 2.18097 8.50159 1.99939C8.50146 1.81784 8.35416 1.67054 8.17261 1.67041Z"
++      fill="currentColor"
++    />
++  </svg>
++)
++
++export const IconFileSolid = ({ size = 20 }: { size?: number } = {}) => (
++  <svg width={size} height={size} viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path d="M8.43168 3.60367V4.57925H3.5684V3.60367H8.43168Z" fill="currentColor" />
++    <path d="M7.05619 5.88371V6.8593H3.5684V5.88371H7.05619Z" fill="currentColor" />
++    <path
++      d="M6.92554 0.409914C7.64534 0.409914 8.22599 0.408808 8.68921 0.458986C9.16185 0.510194 9.57228 0.619431 9.9292 0.878664C10.1376 1.0301 10.3212 1.21371 10.4727 1.42212C10.7319 1.779 10.8411 2.18953 10.8923 2.66211C10.9425 3.12527 10.9414 3.70612 10.9414 4.42578V7.57373C10.9414 8.29334 10.9425 8.87423 10.8923 9.3374C10.8411 9.80998 10.7318 10.2205 10.4727 10.5774C10.3212 10.7858 10.1376 10.9694 9.9292 11.1209C9.57223 11.3802 9.16195 11.4893 8.68921 11.5405C8.22597 11.5907 7.64539 11.5903 6.92554 11.5903H5.07398C4.35419 11.5903 3.77352 11.5907 3.3103 11.5405C2.83764 11.4893 2.42724 11.3802 2.07031 11.1209C1.86194 10.9694 1.67827 10.7858 1.52686 10.5774C1.26775 10.2205 1.15838 9.80994 1.10718 9.3374C1.05705 8.87423 1.05811 8.29334 1.05811 7.57373V4.42578C1.05811 3.70612 1.057 3.12527 1.10718 2.66211C1.15842 2.18953 1.26757 1.779 1.52686 1.42212C1.67833 1.21367 1.86185 1.03012 2.07031 0.878664C2.42724 0.619384 2.83765 0.510204 3.3103 0.458986C3.77352 0.408801 4.35419 0.409914 5.07398 0.409914H6.92554ZM5.07398 1.42212C4.33165 1.42212 3.81546 1.42316 3.41944 1.46607C3.03298 1.50794 2.82136 1.58524 2.66577 1.69824C2.54327 1.78725 2.43546 1.89509 2.34644 2.01758C2.23341 2.17314 2.15615 2.38487 2.11426 2.77124C2.07136 3.16722 2.07031 3.6836 2.07031 4.42578V7.57373C2.07031 8.31581 2.07142 8.83228 2.11426 9.22827C2.15612 9.61468 2.23347 9.82708 2.34644 9.98267C2.43541 10.1051 2.54336 10.213 2.66577 10.302C2.82136 10.415 3.03304 10.4923 3.41944 10.5342C3.81546 10.5771 4.33165 10.5774 5.07398 10.5774H6.92554C7.66788 10.5774 8.18404 10.5771 8.58008 10.5342C8.96649 10.4923 9.17815 10.415 9.33374 10.302C9.45617 10.213 9.56409 10.1051 9.65308 9.98267C9.76606 9.82707 9.84339 9.61472 9.88526 9.22827C9.9281 8.83228 9.9292 8.31582 9.9292 7.57373V4.42578C9.9292 3.6836 9.92816 3.16722 9.88526 2.77124C9.84336 2.38489 9.7661 2.17314 9.65308 2.01758C9.56407 1.89513 9.45622 1.78723 9.33374 1.69824C9.17815 1.58528 8.96648 1.50793 8.58008 1.46607C8.18405 1.42317 7.66786 1.42212 6.92554 1.42212H5.07398Z"
++      fill="currentColor"
++    />
++  </svg>
++)
++
++export const IconThink16 = () => (
++  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path
++      d="M8.00192 6.64454C8.75026 6.64454 9.35732 7.25169 9.35739 8.00001C9.35739 8.74838 8.7503 9.35548 8.00192 9.35548C7.25367 9.35533 6.64743 8.74829 6.64743 8.00001C6.6475 7.25178 7.25371 6.64468 8.00192 6.64454Z"
++      fill="currentColor"
++    />
++    <path
++      fillRule="evenodd"
++      clipRule="evenodd"
++      d="M9.97165 1.29981C11.5853 0.718916 13.271 0.642197 14.3144 1.68555C15.3577 2.72902 15.2811 4.41466 14.7002 6.02833C14.4707 6.66561 14.1504 7.32937 13.75 8.00001C14.1504 8.67062 14.4707 9.33444 14.7002 9.97169C15.2811 11.5854 15.3578 13.271 14.3144 14.3145C13.271 15.3579 11.5854 15.2811 9.97165 14.7002C9.3344 14.4708 8.67059 14.1505 7.99997 13.75C7.32933 14.1505 6.66558 14.4708 6.02829 14.7002C4.41461 15.2811 2.72899 15.3578 1.68552 14.3145C0.642155 13.271 0.71887 11.5854 1.29977 9.97169C1.52915 9.33454 1.84865 8.67049 2.24899 8.00001C1.84866 7.32953 1.52915 6.66544 1.29977 6.02833C0.718852 4.41459 0.64207 2.729 1.68552 1.68555C2.72897 0.642112 4.41456 0.718887 6.02829 1.29981C6.66541 1.52918 7.32949 1.8487 7.99997 2.24903C8.67045 1.84869 9.33451 1.52919 9.97165 1.29981ZM12.9404 9.2129C12.4391 9.893 11.8616 10.5681 11.2148 11.2149C10.568 11.8616 9.89296 12.4391 9.21286 12.9404C9.62532 13.1579 10.0271 13.338 10.4121 13.4766C11.9146 14.0174 12.9172 13.8738 13.3955 13.3955C13.8737 12.9173 14.0174 11.9146 13.4765 10.4121C13.3379 10.0271 13.1578 9.62535 12.9404 9.2129ZM3.05856 9.2129C2.84121 9.62523 2.66197 10.0272 2.52341 10.4121C1.98252 11.9146 2.12627 12.9172 2.60446 13.3955C3.08278 13.8737 4.08544 14.0174 5.58786 13.4766C5.97264 13.338 6.37389 13.1577 6.7861 12.9404C6.10624 12.4393 5.43168 11.8614 4.78513 11.2149C4.13823 10.5679 3.55992 9.89313 3.05856 9.2129ZM7.99899 3.792C7.23179 4.31419 6.45306 4.95512 5.70407 5.70411C4.95509 6.45309 4.31415 7.23184 3.79196 7.99903C4.3143 8.76666 4.95471 9.54653 5.70407 10.2959C6.45309 11.0449 7.23271 11.6848 7.99997 12.207C8.76725 11.6848 9.54683 11.0449 10.2959 10.2959C11.0449 9.54686 11.6848 8.76729 12.207 8.00001C11.6848 7.23275 11.0449 6.45312 10.2959 5.70411C9.5465 4.95475 8.76662 4.31434 7.99899 3.792ZM5.58786 2.52344C4.08533 1.98255 3.08272 2.12625 2.60446 2.6045C2.12621 3.08275 1.98252 4.08536 2.52341 5.5879C2.66189 5.97253 2.8414 6.37409 3.05856 6.78614C3.55983 6.10611 4.1384 5.43189 4.78513 4.78516C5.43186 4.13843 6.10606 3.55987 6.7861 3.0586C6.37405 2.84144 5.97249 2.66192 5.58786 2.52344ZM13.3955 2.6045C12.9172 2.12631 11.9146 1.98257 10.4121 2.52344C10.0272 2.66201 9.62519 2.84125 9.21286 3.0586C9.8931 3.55996 10.5679 4.13827 11.2148 4.78516C11.8614 5.43172 12.4392 6.10627 12.9404 6.78614C13.1577 6.37393 13.338 5.97267 13.4765 5.5879C14.0174 4.08549 13.8736 3.08281 13.3955 2.6045Z"
++      fill="currentColor"
++    />
++  </svg>
++)
++
++export const IconArrowRight14 = () => (
++  <svg width={14} height={14} viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path
++      d="M5.5 2.15137L5.92383 2.57617L8.65137 5.30273C8.90706 5.55843 9.13382 5.78438 9.29785 5.98828C9.46883 6.20088 9.61756 6.44405 9.66602 6.75C9.69222 6.91565 9.69222 7.08435 9.66602 7.25C9.61756 7.55595 9.46883 7.79912 9.29785 8.01172C9.13382 8.21561 8.90706 8.44157 8.65137 8.69727L5.92383 11.4238L5.5 11.8486L4.65137 11L5.07617 10.5762L7.80273 7.84863C8.07732 7.57405 8.24849 7.40124 8.3623 7.25977C8.46904 7.12709 8.47813 7.07728 8.48047 7.0625C8.48703 7.02105 8.48703 6.97895 8.48047 6.9375C8.47813 6.92272 8.46904 6.87291 8.3623 6.74023C8.24848 6.59876 8.07732 6.42595 7.80273 6.15137L5.07617 3.42383L4.65137 3L5.5 2.15137Z"
++      fill="currentColor"
++    />
++  </svg>
++)
+\ No newline at end of file
 diff --git a/src/components/chatInput/ChatInput.tsx b/src/components/chatInput/ChatInput.tsx
 index 7a66a71..3cc2aea 100644
 --- a/src/components/chatInput/ChatInput.tsx
@@ -758,7 +804,7 @@ index cfeb9e0..8e60dd2 100644
          <ReplyArea
            message={message}
 diff --git a/src/components/messages/MessageList.module.css b/src/components/messages/MessageList.module.css
-index 31f7b73..c8250d0 100644
+index 31f7b73..6e876f8 100644
 --- a/src/components/messages/MessageList.module.css
 +++ b/src/components/messages/MessageList.module.css
 @@ -1,3 +1,11 @@
@@ -790,14 +836,13 @@ index 31f7b73..c8250d0 100644
      overflow: hidden;
      scrollbar-gutter: auto;
    }
-@@ -35,3 +51,25 @@
+@@ -35,3 +51,24 @@
    margin: 0 auto;
    padding-bottom: 24px;
  }
 +
 +.scrollDown {
 +  position: absolute;
-+  right: 12px;
 +  z-index: 9;
 +  display: flex;
 +  align-items: center;
@@ -818,7 +863,7 @@ index 31f7b73..c8250d0 100644
 +}
 \ No newline at end of file
 diff --git a/src/components/messages/MessageList.tsx b/src/components/messages/MessageList.tsx
-index 6b8c0e9..c1c01ba 100644
+index 6b8c0e9..293b59c 100644
 --- a/src/components/messages/MessageList.tsx
 +++ b/src/components/messages/MessageList.tsx
 @@ -1,4 +1,6 @@
@@ -837,7 +882,7 @@ index 6b8c0e9..c1c01ba 100644
  import { UserMessage } from './UserMessage.js'
  import type { Message } from '../../services/chat/types.js'
  
-@@ -42,7 +46,10 @@ export const MessageList = ({
+@@ -42,7 +46,13 @@ export const MessageList = ({
    streaming: boolean
    footer: React.ReactNode
  }) => {
@@ -845,10 +890,13 @@ index 6b8c0e9..c1c01ba 100644
    const isMobile = useIsMobile()
 +  const [showScrollDown, setShowScrollDown] = useState(false)
 +  const [footerHeight, setFooterHeight] = useState(0)
++  const [footerWidth, setFooterWidth] = useState(0)
++  const [wrapperWidth, setWrapperWidth] = useState(0)
++  const wrapperRef = useRef<HTMLDivElement>(null)
    const scrollRef = useRef<HTMLDivElement>(null)
    const contentRef = useRef<HTMLDivElement>(null)
    const stickyRef = useRef(true)
-@@ -101,6 +108,49 @@ export const MessageList = ({
+@@ -101,6 +111,53 @@ export const MessageList = ({
  
    useEffect(closeSearchPanel, [session.id, lastMessageId])
  
@@ -891,22 +939,39 @@ index 6b8c0e9..c1c01ba 100644
 +    const footer = el?.querySelector<HTMLElement>('[class*="inputContainer"]')
 +    if (footer === null || footer === undefined) return
 +    setFooterHeight(footer.offsetHeight)
-+    const observer = new ResizeObserver(() => setFooterHeight(footer.offsetHeight))
++    setFooterWidth(footer.offsetWidth)
++    const observer = new ResizeObserver(() => {
++      setFooterHeight(footer.offsetHeight)
++      setFooterWidth(footer.offsetWidth)
++    })
 +    observer.observe(footer)
 +    return () => observer.disconnect()
 +  }, [isMobile, session.id])
    const selectVersion = useCallback(
      (messageId: string, anchorTop: number) => {
        if (streaming) {
-@@ -143,6 +193,7 @@ export const MessageList = ({
+@@ -139,10 +196,20 @@ export const MessageList = ({
+     return () => el.removeEventListener('scroll', onScroll)
+   }, [isMobile, scrollToBottom])
+ 
++  useEffect(() => {
++    const wrapper = wrapperRef.current
++    if (wrapper === null) return
++    setWrapperWidth(wrapper.clientWidth)
++    const observer = new ResizeObserver(() => setWrapperWidth(wrapper.clientWidth))
++    observer.observe(wrapper)
++    return () => observer.disconnect()
++  }, [])
++
+   const lastIndex = messages.length - 1
    const uploadRetryId = getUploadRetryId(messages, streaming)
    return (
      <ScrollToBottomContext.Provider value={scrollToBottom}>
-+      <div className={styles.wrapper}>
++      <div ref={wrapperRef} className={styles.wrapper}>
        <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
          <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
            <div ref={contentRef} className={styles.column}>
-@@ -175,6 +226,23 @@ export const MessageList = ({
+@@ -175,6 +242,28 @@ export const MessageList = ({
            </div>
          </div>
          {footer}
@@ -915,7 +980,12 @@ index 6b8c0e9..c1c01ba 100644
 +        <button
 +          type="button"
 +          className={styles.scrollDown}
-+          style={{ bottom: footerHeight + 20 }}
++          style={{
++            bottom: footerHeight + 20,
++            right: wrapperWidth > 0 && footerWidth > 0
++              ? Math.max(12, (wrapperWidth - footerWidth) / 2 + 12)
++              : 12,
++          }}
 +          aria-label={t('scrollToLatest')}
 +          onClick={() => {
 +            stickyRef.current = true
@@ -952,6 +1022,47 @@ index f86d729..b9b592c 100644
    cursor: pointer;
    user-select: none;
    transition: color 0.2s;
+diff --git a/src/components/messages/ReplyArea.tsx b/src/components/messages/ReplyArea.tsx
+index c87f36c..037704a 100644
+--- a/src/components/messages/ReplyArea.tsx
++++ b/src/components/messages/ReplyArea.tsx
+@@ -4,15 +4,12 @@ import { memo, useEffect, useState, type ReactNode } from 'react'
+ import {
+   IconBrowseOutline16,
+   IconBrowseWarningOutline16,
+-  IconChevronDownOutline14,
+-  IconChevronRightOutline14,
+   IconCheckedOutline14,
+   IconCloseFill14,
+   IconLinkOutline16,
+   IconRightUpOutline14,
+   IconSearchOutline16,
+   IconSearchWarningOutline16,
+-  IconThinkOutline16,
+ } from '../base/icons.js'
+ import type { AssistantMessage } from '../../services/chat/types.js'
+ import {
+@@ -31,6 +28,7 @@ import {
+ import { Tooltip } from '../base/Tooltip.js'
+ import { Markdown } from '../markdown/Markdown.js'
+ import { SiteThumbnails } from '../search/SiteLogo.js'
++import { IconArrowDown14, IconArrowRight14, IconThink16 } from '../base/icons.js'
+ import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js'
+ import styles from './ReplyArea.module.css'
+ import './thinking.markdown.css'
+@@ -80,10 +78,10 @@ export const ReplyArea = memo(function ReplyArea({
+       {title ? (
+         <div className={styles.title} onClick={() => setOpen((value) => !value)}>
+           <span className={clsx(styles.titleIcon, stopped && styles.stoppedIcon)}>
+-            <IconThinkOutline16 />
++            <IconThink16 />
+           </span>
+           <span className={clsx(styles.titleText, titleActive && styles.shimmer)}>{title}</span>
+-          {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
++          {open ? <IconArrowDown14 /> : <IconArrowRight14 />}
+         </div>
+       ) : null}
+       {open || !title ? (
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
 index 0000000..a9c88aa
@@ -1749,10 +1860,10 @@ index c50dd62..859c46b 100644
  })
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
-index 0000000..767b8d2
+index 0000000..5a506e5
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.module.css
-@@ -0,0 +1,293 @@
+@@ -0,0 +1,306 @@
 +/* 尺寸与结构对齐官网：660px 宽、72vh 高、结果行最小 67px。 */
 +.overlay {
 +  position: fixed;
@@ -2046,18 +2157,31 @@ index 0000000..767b8d2
 +  width: 70%;
 +  opacity: 0.7;
 +}
++
++.branchTag {
++  display: inline-flex;
++  align-items: center;
++  gap: 2px;
++}
++
++.fileIcon {
++  display: inline-flex;
++  margin-right: 4px;
++  color: var(--dsw-alias-label-tertiary);
++  vertical-align: -2px;
++}
 \ No newline at end of file
 diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
 new file mode 100644
-index 0000000..22d97ba
+index 0000000..aed6dbf
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.tsx
-@@ -0,0 +1,303 @@
+@@ -0,0 +1,318 @@
 +import { useEffect, useRef, useState } from 'react'
 +import type { KeyboardEvent } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
 +import { useSettings } from '../../services/settings.js'
-+import { IconAssistantAvatar20, IconCloseFilled16, IconSearchFilled16 } from '../base/icons.js'
++import { IconAssistantAvatar20, IconBranch10, IconCloseFilled16, IconFileSolid, IconSearchFilled16 } from '../base/icons.js'
 +import { loadSession } from '../../services/chat/db.js'
 +import { revealMessage, selectSession, useChatStore } from '../../services/chat/store.js'
 +import type { Message } from '../../services/chat/types.js'
@@ -2072,7 +2196,7 @@ index 0000000..22d97ba
 +
 +/** 一条命中：标题行或消息行。 */
 +type Hit = {
-+  kind: 'title' | 'message'
++  kind: 'title' | 'message' | 'file'
 +  sessionId: string
 +  messageId: string
 +  title: string
@@ -2200,6 +2324,20 @@ index 0000000..22d97ba
 +            else list.push(message.id)
 +          }
 +          for (const message of session.messages) {
++            if (message.role === 'user') {
++              for (const file of message.files) {
++                if (!file.name.toLowerCase().includes(needle)) continue
++                found.push({
++                  kind: 'file',
++                  sessionId: summary.id,
++                  messageId: message.id,
++                  title: summary.title,
++                  snippet: file.name,
++                  at: message.createdAt,
++                  role: 'user',
++                })
++              }
++            }
 +            const text = messageText(message)
 +            const index = text.toLowerCase().indexOf(needle)
 +            if (index < 0) continue
@@ -2331,17 +2469,18 @@ index 0000000..22d97ba
 +                onClick={() => choose(hit)}
 +              >
 +                <span className={styles.glyph} data-role={hit.role}>
-+                  {hit.role === 'user' ? <UserGlyph /> : <IconAssistantAvatar20 />}
++                  {hit.kind === 'file' ? <IconFileSolid size={20} /> : hit.role === 'user' ? <UserGlyph /> : <IconAssistantAvatar20 />}
 +                </span>
 +                <span className={styles.body}>
 +                  <span className={styles.titleRow}>
 +                    <span className={styles.title}>{highlight(hit.title, needle, styles.mark)}</span>
 +                    <span className={styles.date}>{formatDate(hit.at, locale, t)}</span>
 +                  </span>
-+                  {hit.kind === 'message' ? (
++                  {hit.kind !== 'title' ? (
 +                    <span className={styles.snippet}>
++                      {hit.kind === 'file' ? <span className={styles.fileIcon}><IconFileSolid size={12} /></span> : null}
 +                      {hit.branches !== undefined && hit.branches > 1 ? (
-+                        <span className={styles.branchTag}>{'‹'} {hit.branchAt}/{hit.branches}</span>
++                        <span className={styles.branchTag}><IconBranch10 /> {hit.branchAt}/{hit.branches}</span>
 +                      ) : null}
 +                      {highlight(hit.snippet, needle, styles.markBody)}
 +                    </span>
