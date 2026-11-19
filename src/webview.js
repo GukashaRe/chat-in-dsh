@@ -94,12 +94,54 @@ async function sendFile(res, file) {
   await pipeline(fs.createReadStream(file), res)
 }
 
-/** 上游请求原样转发，鉴权换成 DSH 账户凭据；SSE 直接透传。 */
+/** DSH 里模型设置默认使用的凭据名；安装可自定义 apiKeyEnv，优先按设置里的名字取。 */
+const DEFAULT_API_KEY_REF = 'DEEPSEEK_API_KEY'
+
+/** 从 DSH 设置描述里找 DeepSeek API Key 提供方配置的凭据名。 */
+function findApiKeyRef(ctx) {
+  try {
+    const descriptors = ctx.get('settings')?.describe?.() ?? []
+    const stack = descriptors.map(descriptor => descriptor?.value)
+    while (stack.length > 0) {
+      const value = stack.pop()
+      if (value === null || typeof value !== 'object') continue
+      for (const [key, entry] of Object.entries(value)) {
+        if (/apikeyenv/iu.test(key) && typeof entry === 'string' && entry.length > 0) return entry
+        if (entry !== null && typeof entry === 'object') stack.push(entry)
+      }
+    }
+  } catch {
+    // 设置服务不可读时退回约定名
+  }
+  return DEFAULT_API_KEY_REF
+}
+
+/** 解析一次上游请求的鉴权头：账户登录用 x-dsh-auth-token，API Key 路由用 x-api-key。 */
+export async function resolveUpstreamAuth(ctx, baseURL) {
+  const token = await ctx.get('deepseekAccount')?.resolveToken(baseURL)
+  if (token !== undefined) return { source: 'account', headers: { [TOKEN_HEADER]: token } }
+  const ref = findApiKeyRef(ctx)
+  let key
+  try {
+    const hit = await ctx.get('credentials')?.resolve(ref)
+    key = hit?.value
+  } catch {
+    key = undefined
+  }
+  if (key === undefined || key.length === 0) {
+    const ambient = process.env[ref]
+    if (typeof ambient === 'string' && ambient.length > 0) key = ambient
+  }
+  if (key === undefined || key.length === 0) return undefined
+  return { source: 'api-key', headers: { 'x-api-key': key } }
+}
+
+/** 上游请求原样转发，鉴权换成 DSH 的账户凭据或 API Key；SSE 直接透传。 */
 async function proxyMessages(ctx, config, req, res) {
   const baseURL = config.baseURL || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL
-  const token = await ctx.get('deepseekAccount')?.resolveToken(baseURL)
-  if (token === undefined) {
-    sendJson(res, { error: { message: '尚未登录 DeepSeek，或该端点不接受 DSH 账户凭据' } }, 401)
+  const auth = await resolveUpstreamAuth(ctx, baseURL)
+  if (auth === undefined) {
+    sendJson(res, { error: { message: 'DSH 里没有可用的 DeepSeek 凭据：请登录 DeepSeek 账户，或在模型设置里配置 DeepSeek API Key' } }, 401)
     return
   }
   const body = await readBody(req)
@@ -134,9 +176,9 @@ async function proxyMessages(ctx, config, req, res) {
 /** 附件上传转发：multipart 原样送到官方 Files API。 */
 async function proxyFiles(ctx, config, req, res, pathname) {
   const baseURL = config.baseURL || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL
-  const token = await ctx.get('deepseekAccount')?.resolveToken(baseURL)
-  if (token === undefined) {
-    sendJson(res, { error: { message: '尚未登录 DeepSeek' } }, 401)
+  const auth = await resolveUpstreamAuth(ctx, baseURL)
+  if (auth === undefined) {
+    sendJson(res, { error: { message: 'DSH 里没有可用的 DeepSeek 凭据：请登录 DeepSeek 账户，或在模型设置里配置 DeepSeek API Key' } }, 401)
     return
   }
   const target = `${apiRoot(baseURL)}${pathname.slice('/webchat/anthropic/v1'.length)}`
@@ -145,7 +187,7 @@ async function proxyFiles(ctx, config, req, res, pathname) {
   const headers = {
     'anthropic-version': '2023-06-01',
     'anthropic-beta': typeof clientBeta === 'string' && clientBeta.length > 0 ? clientBeta : 'files-api-2025-04-14',
-    [TOKEN_HEADER]: token,
+    ...auth.headers,
   }
   const init = { method: req.method, headers }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -164,9 +206,9 @@ async function proxyFiles(ctx, config, req, res, pathname) {
 /** 语音接口转发：ASR 收 multipart、TTS 回 PCM 流，浏览器不持有凭据。 */
 async function proxyTools(ctx, config, req, res, pathname) {
   const baseURL = config.baseURL || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL
-  const token = await ctx.get('deepseekAccount')?.resolveToken(baseURL)
-  if (token === undefined) {
-    sendJson(res, { error: { message: '尚未登录 DeepSeek，或该端点不接受 DSH 账户凭据' } }, 401)
+  const auth = await resolveUpstreamAuth(ctx, baseURL)
+  if (auth === undefined) {
+    sendJson(res, { error: { message: 'DSH 里没有可用的 DeepSeek 凭据：请登录 DeepSeek 账户，或在模型设置里配置 DeepSeek API Key' } }, 401)
     return
   }
   const root = baseURL.replace(/\/+$/u, '').replace(/\/anthropic$/u, '')
@@ -177,7 +219,7 @@ async function proxyTools(ctx, config, req, res, pathname) {
   })
   const headers = {
     'anthropic-version': '2023-06-01',
-    [TOKEN_HEADER]: token,
+    ...auth.headers,
     ...(req.headers.authorization === undefined ? {} : { authorization: req.headers.authorization }),
   }
   const contentType = req.headers['content-type']
@@ -216,17 +258,18 @@ async function selfTest(ctx, config) {
   add('static', main !== undefined && fs.existsSync(path.join(DIST, main)), main ?? 'not found')
   try {
     const baseURL = config.baseURL || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL
-    const token = await ctx.get('deepseekAccount')?.resolveToken(baseURL)
+    const auth = await resolveUpstreamAuth(ctx, baseURL)
+    if (auth === undefined) throw new Error('没有可用的 DeepSeek 凭据：账户未登录且未配置 API Key')
     const response = await fetch(`${apiRoot(baseURL)}/messages`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         accept: 'text/event-stream',
         'anthropic-version': '2023-06-01',
-        [TOKEN_HEADER]: token,
+        ...auth.headers,
       },
       body: JSON.stringify({
-        model: 'deepseek-flash',
+        model: auth.source === 'api-key' ? 'deepseek-chat' : 'deepseek-flash',
         messages: [{ role: 'user', content: '只回复两个字：收到' }],
         thinking: { type: 'disabled' },
         stream: true,

@@ -58,6 +58,9 @@ pwsh scripts/build-webview.ps1     # 克隆上游、打补丁、构建、同步 
   短标题右对齐、长标题右侧截断。
 - 思考标题吸顶：长思考滚动到中段时，标题停在滚动容器顶部（top 与滚动容器一致）、背景不透明、
   点击可收起；滚过思考区进入回答后标题随区块离开。宽窄两种布局各验一次。
+- 凭据：`resolveUpstreamAuth` 先取 `deepseekAccount.resolveToken`（账户登录，头 `x-dsh-auth-token`）；
+  没有账户登录时读 DSH 模型设置里的 `apiKeyEnv`（默认 `DEEPSEEK_API_KEY`，经 `credentials.resolve` 或环境变量），
+  用 `x-api-key` 发往官方 Messages/Files。两条路由都要覆盖，401 表示两者都没有。
 - 语音：`POST /webchat/v1/tools/tts` 返回 `audio/pcm`（24kHz/16bit/单声道），`/asr` 返回 `{text,duration_ms}`；
   两条都必须经宿主转发，浏览器不带凭据。
   麦克风：DSH 桌面只给主框架授权（`lib/main.js` 的 `installMicrophonePermissions` 检查 `isMainFrame`），
