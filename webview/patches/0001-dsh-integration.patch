@@ -119,10 +119,10 @@ index 7fbb107..af18578 100644
      const spaceBelow = window.innerHeight - rect.bottom - offset - VIEWPORT_PADDING
  
 diff --git a/src/components/base/icons.tsx b/src/components/base/icons.tsx
-index 25f10ea..9e9a10e 100644
+index 25f10ea..88746ad 100644
 --- a/src/components/base/icons.tsx
 +++ b/src/components/base/icons.tsx
-@@ -523,3 +523,47 @@ export const IconToastError16 = () => (
+@@ -523,3 +523,55 @@ export const IconToastError16 = () => (
      />
    </svg>
  )
@@ -170,6 +170,105 @@ index 25f10ea..9e9a10e 100644
 +    <path d="M13.1265 1.81282L14.1871 2.87348L2.8734 14.1872L1.81274 13.1265L13.1265 1.81282Z" fill="currentColor" />
 +  </svg>
 +)
++export const IconMultiSelectOutline16 = () => (
++  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path
++      d="M13.2764 9.52324C12.5607 9.97754 11.7177 10.242 10.7812 10.242C8.11386 10.2419 5.95042 8.07997 5.9502 5.41289C5.9502 4.48128 6.21453 3.61071 6.67188 2.87285C4.30332 3.4658 2.54992 5.60845 2.5498 8.16093C2.5498 11.1712 4.99103 13.6102 8 13.6102C10.5383 13.6102 12.6709 11.8724 13.2764 9.52324ZM7.05078 5.41289C7.051 7.47224 8.72116 9.1423 10.7812 9.14238C11.9248 9.14238 12.887 8.63397 13.5781 7.8084C13.7266 7.63106 13.9701 7.56547 14.1875 7.64433C14.4049 7.72329 14.5497 7.9297 14.5498 8.16093C14.5498 11.7766 11.6161 14.7098 8 14.7098C4.38402 14.7098 1.4502 11.7792 1.4502 8.16093C1.45033 4.54322 4.3812 1.61015 8 1.61015C8.23027 1.61015 8.43585 1.75352 8.51562 1.96953C8.59536 2.18554 8.53241 2.42829 8.35742 2.57793C7.55573 3.26311 7.05078 4.27876 7.05078 5.41289Z"
++      fill="currentColor"
++    />
++  </svg>
++)
+diff --git a/src/components/markdown/MermaidDiagram.tsx b/src/components/markdown/MermaidDiagram.tsx
+index 72e86c9..e979c2d 100644
+--- a/src/components/markdown/MermaidDiagram.tsx
++++ b/src/components/markdown/MermaidDiagram.tsx
+@@ -14,6 +14,7 @@ export const MermaidDiagram = memo(function MermaidDiagram({
+   const t = useTranslate()
+   const dark = useTheme() === 'dark'
+   const [result, setResult] = useState({ svg: '', failedCode: null as string | null })
++  const [scale, setScale] = useState(1)
+   const latestCodeRef = useRef(code)
+   latestCodeRef.current = code
+   // 流式阶段从 ref 取最新文本，避免每个片段都取消绘制；结束后立即绘制完整内容。
+@@ -88,5 +89,20 @@ export const MermaidDiagram = memo(function MermaidDiagram({
+     )
+   }
+ 
+-  return <div className="md-mermaid-diagram" dangerouslySetInnerHTML={{ __html: result.svg }} />
++  return (
++    <div className="md-mermaid-diagram">
++      <div className="md-mermaid-zoom">
++        <button type="button" aria-label={t('mermaidZoomOut')} onClick={() => setScale((value) => Math.max(0.5, Math.round((value - 0.25) * 100) / 100))}>
++          −
++        </button>
++        <button type="button" aria-label={t('mermaidZoomReset')} onClick={() => setScale(1)}>
++          {Math.round(scale * 100)}%
++        </button>
++        <button type="button" aria-label={t('mermaidZoomIn')} onClick={() => setScale((value) => Math.min(4, Math.round((value + 0.25) * 100) / 100))}>
++          +
++        </button>
++      </div>
++      <div className="md-mermaid-canvas" style={{ zoom: scale }} dangerouslySetInnerHTML={{ __html: result.svg }} />
++    </div>
++  )
+ })
+diff --git a/src/components/markdown/markdown.css b/src/components/markdown/markdown.css
+index 7b90b33..0cea017 100644
+--- a/src/components/markdown/markdown.css
++++ b/src/components/markdown/markdown.css
+@@ -326,6 +326,9 @@
+ }
+ 
+ .md-code-block-banner {
++  position: sticky;
++  top: 0;
++  z-index: 6;
+   background: var(--dsl-code-block-banner-background-color);
+   display: flex;
+   justify-content: space-between;
+@@ -378,3 +381,41 @@
+   color: var(--dsw-alias-label-secondary);
+   font-size: 14px;
+ }
++
++/* Mermaid 图表缩放：只影响这张图，容器可横向滚动 */
++.md-mermaid-diagram {
++  position: relative;
++}
++
++.md-mermaid-canvas {
++  transform-origin: top left;
++}
++
++.md-mermaid-zoom {
++  position: sticky;
++  top: 0;
++  z-index: 3;
++  display: flex;
++  justify-content: flex-end;
++  gap: 4px;
++  padding: 6px 8px 0;
++  pointer-events: none;
++}
++
++.md-mermaid-zoom button {
++  pointer-events: auto;
++  min-width: 26px;
++  height: 24px;
++  padding: 0 6px;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 8px;
++  background: var(--dsw-alias-bg-base);
++  color: var(--dsw-alias-label-secondary);
++  font: var(--dsw-font-xs-13);
++  cursor: pointer;
++}
++
++.md-mermaid-zoom button:hover {
++  color: var(--dsw-alias-label-primary);
++  border-color: var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
++}
+\ No newline at end of file
 diff --git a/src/components/messages/AssistantMessage.tsx b/src/components/messages/AssistantMessage.tsx
 index cfeb9e0..8e60dd2 100644
 --- a/src/components/messages/AssistantMessage.tsx
@@ -184,7 +283,7 @@ index cfeb9e0..8e60dd2 100644
          <ReplyArea
            message={message}
 diff --git a/src/components/messages/MessageList.module.css b/src/components/messages/MessageList.module.css
-index 31f7b73..dfe1ad1 100644
+index 31f7b73..2877fda 100644
 --- a/src/components/messages/MessageList.module.css
 +++ b/src/components/messages/MessageList.module.css
 @@ -1,3 +1,11 @@
@@ -216,11 +315,45 @@ index 31f7b73..dfe1ad1 100644
      overflow: hidden;
      scrollbar-gutter: auto;
    }
+@@ -35,3 +51,25 @@
+   margin: 0 auto;
+   padding-bottom: 24px;
+ }
++
++.scrollDown {
++  position: absolute;
++  right: 20px;
++  z-index: 9;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  width: 36px;
++  height: 36px;
++  padding: 0;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 50%;
++  background: var(--dsw-alias-bg-layer-2);
++  color: var(--dsw-alias-label-secondary);
++  box-shadow: var(--dsw-shadow-lv3, 0 4px 16px rgba(0, 0, 0, 0.08));
++  cursor: pointer;
++}
++
++.scrollDown:hover {
++  color: var(--dsw-alias-label-primary);
++}
+\ No newline at end of file
 diff --git a/src/components/messages/MessageList.tsx b/src/components/messages/MessageList.tsx
-index 6b8c0e9..788a1b5 100644
+index 6b8c0e9..f88685d 100644
 --- a/src/components/messages/MessageList.tsx
 +++ b/src/components/messages/MessageList.tsx
-@@ -10,6 +10,8 @@ import type { Session } from '../../services/chat/types.js'
+@@ -1,4 +1,6 @@
+ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
++import { useTranslate } from '../../i18n/index.js'
++import { IconChevronDownOutline14 } from '../base/icons.js'
+ import { useIsMobile } from '../../app/viewport.js'
+ import {
+   buildMessageVersions,
+@@ -10,6 +12,8 @@ import type { Session } from '../../services/chat/types.js'
  import { closeSearchPanel } from '../search/searchPanelState.js'
  import { AssistantMessage } from './AssistantMessage.js'
  import { ScrollToBottomContext } from './scrollContext.js'
@@ -229,7 +362,18 @@ index 6b8c0e9..788a1b5 100644
  import { UserMessage } from './UserMessage.js'
  import type { Message } from '../../services/chat/types.js'
  
-@@ -101,6 +103,25 @@ export const MessageList = ({
+@@ -42,7 +46,10 @@ export const MessageList = ({
+   streaming: boolean
+   footer: React.ReactNode
+ }) => {
++  const t = useTranslate()
+   const isMobile = useIsMobile()
++  const [showScrollDown, setShowScrollDown] = useState(false)
++  const [footerHeight, setFooterHeight] = useState(0)
+   const scrollRef = useRef<HTMLDivElement>(null)
+   const contentRef = useRef<HTMLDivElement>(null)
+   const stickyRef = useRef(true)
+@@ -101,6 +108,49 @@ export const MessageList = ({
  
    useEffect(closeSearchPanel, [session.id, lastMessageId])
  
@@ -252,10 +396,34 @@ index 6b8c0e9..788a1b5 100644
 +      consumeScrollTarget()
 +    }
 +  }, [pendingScroll, session.id, session.messages])
++  // 上翻超过一屏阈值后显示「回到最新」；按钮位置跟随输入框高度
++  const updateScrollDown = useCallback(() => {
++    const el = scrollRef.current
++    if (el === null) return
++    setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 52)
++  }, [])
++
++  useEffect(() => {
++    const el = scrollRef.current
++    if (el === null) return
++    updateScrollDown()
++    el.addEventListener('scroll', updateScrollDown, { passive: true })
++    return () => el.removeEventListener('scroll', updateScrollDown)
++  }, [isMobile, session.id, messages.length, streaming, updateScrollDown])
++
++  useEffect(() => {
++    const el = scrollRef.current
++    const footer = el?.querySelector<HTMLElement>('[class*="inputContainer"]')
++    if (footer === null || footer === undefined) return
++    setFooterHeight(footer.offsetHeight)
++    const observer = new ResizeObserver(() => setFooterHeight(footer.offsetHeight))
++    observer.observe(footer)
++    return () => observer.disconnect()
++  }, [isMobile, session.id])
    const selectVersion = useCallback(
      (messageId: string, anchorTop: number) => {
        if (streaming) {
-@@ -143,6 +164,7 @@ export const MessageList = ({
+@@ -143,6 +193,7 @@ export const MessageList = ({
    const uploadRetryId = getUploadRetryId(messages, streaming)
    return (
      <ScrollToBottomContext.Provider value={scrollToBottom}>
@@ -263,15 +431,30 @@ index 6b8c0e9..788a1b5 100644
        <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
          <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
            <div ref={contentRef} className={styles.column}>
-@@ -176,6 +198,8 @@ export const MessageList = ({
+@@ -175,6 +226,23 @@ export const MessageList = ({
+           </div>
          </div>
          {footer}
-       </div>
-+      {!isMobile && <TurnRail scrollRef={scrollRef} messages={messages} versions={versions} />}
 +      </div>
++            {showScrollDown ? (
++        <button
++          type="button"
++          className={styles.scrollDown}
++          style={{ bottom: footerHeight + 12 }}
++          aria-label={t('scrollToLatest')}
++          onClick={() => {
++            stickyRef.current = true
++            scrollToBottom()
++            setShowScrollDown(false)
++          }}
++        >
++          <IconChevronDownOutline14 />
++        </button>
++      ) : null}
++      {!isMobile && <TurnRail scrollRef={scrollRef} messages={messages} versions={versions} />}
+       </div>
      </ScrollToBottomContext.Provider>
    )
- }
 diff --git a/src/components/messages/ReplyArea.module.css b/src/components/messages/ReplyArea.module.css
 index f86d729..b9b592c 100644
 --- a/src/components/messages/ReplyArea.module.css
@@ -296,7 +479,7 @@ index f86d729..b9b592c 100644
    transition: color 0.2s;
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
-index 0000000..2103050
+index 0000000..ea8ddcf
 --- /dev/null
 +++ b/src/components/messages/TurnRail.module.css
 @@ -0,0 +1,201 @@
@@ -394,7 +577,7 @@ index 0000000..2103050
 +  align-items: flex-end;
 +  box-sizing: border-box;
 +  max-height: 250px;
-+  padding: 4px 0;
++  padding: 4px 0 4px 10px;
 +  overflow-y: auto;
 +  overscroll-behavior: contain;
 +  scrollbar-width: none;
@@ -503,10 +686,10 @@ index 0000000..2103050
 +}
 diff --git a/src/components/messages/TurnRail.tsx b/src/components/messages/TurnRail.tsx
 new file mode 100644
-index 0000000..4ba4a5c
+index 0000000..b8e6065
 --- /dev/null
 +++ b/src/components/messages/TurnRail.tsx
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,136 @@
 +import type { RefObject } from 'react'
 +import { useEffect, useMemo, useRef, useState } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
@@ -628,7 +811,6 @@ index 0000000..4ba4a5c
 +                className={styles.item}
 +                data-turn-index={index}
 +                data-active={index === active ? 'true' : undefined}
-+                title={turn.text}
 +                onClick={() => jump(turn.id)}
 +              >
 +                {branches > 1 ? <span className={styles.branchTag}>{branchAt}/{branches}</span> : null}
@@ -777,7 +959,7 @@ index e4bc1b5..892e2d4 100644
            size="m"
            tone="primary"
 diff --git a/src/components/sider/SessionItem.module.css b/src/components/sider/SessionItem.module.css
-index 6ccb2cf..2430398 100644
+index 6ccb2cf..6843c3e 100644
 --- a/src/components/sider/SessionItem.module.css
 +++ b/src/components/sider/SessionItem.module.css
 @@ -23,7 +23,34 @@
@@ -795,11 +977,11 @@ index 6ccb2cf..2430398 100644
 +  justify-content: center;
 +  flex-shrink: 0;
 +  box-sizing: border-box;
-+  width: 18px;
-+  height: 18px;
++  width: 16px;
++  height: 16px;
 +  margin-right: 8px;
 +  border: 1px solid var(--dsw-alias-border-l2);
-+  border-radius: 6px;
++  border-radius: 4px;
 +  background: transparent;
 +  color: #fff;
 +  transition:
@@ -830,11 +1012,11 @@ index 6ccb2cf..2430398 100644
 +  justify-content: center;
 +  flex-shrink: 0;
 +  box-sizing: border-box;
-+  width: 18px;
-+  height: 18px;
++  width: 16px;
++  height: 16px;
 +  margin-right: 8px;
 +  border: 1px solid var(--dsw-alias-border-l2);
-+  border-radius: 6px;
++  border-radius: 4px;
 +  background: transparent;
 +  color: #fff;
 +  transition:
@@ -861,11 +1043,11 @@ index 6ccb2cf..2430398 100644
 +  justify-content: center;
 +  flex-shrink: 0;
 +  box-sizing: border-box;
-+  width: 18px;
-+  height: 18px;
++  width: 16px;
++  height: 16px;
 +  margin-right: 8px;
 +  border: 1px solid var(--dsw-alias-border-l2);
-+  border-radius: 6px;
++  border-radius: 4px;
 +  background: transparent;
 +  color: #fff;
 +  transition:
@@ -896,11 +1078,11 @@ index 6ccb2cf..2430398 100644
 +  justify-content: center;
 +  flex-shrink: 0;
 +  box-sizing: border-box;
-+  width: 18px;
-+  height: 18px;
++  width: 16px;
++  height: 16px;
 +  margin-right: 8px;
 +  border: 1px solid var(--dsw-alias-border-l2);
-+  border-radius: 6px;
++  border-radius: 4px;
 +  background: transparent;
 +  color: #fff;
 +  transition:
@@ -917,6 +1099,16 @@ index 6ccb2cf..2430398 100644
      display: flex;
    }
  }
+@@ -84,3 +196,8 @@
+     font-size: 16px;
+   }
+ }
++
++.checkbox svg {
++  width: 11px;
++  height: 11px;
++}
+\ No newline at end of file
 diff --git a/src/components/sider/SessionItem.tsx b/src/components/sider/SessionItem.tsx
 index c50dd62..849c993 100644
 --- a/src/components/sider/SessionItem.tsx
@@ -1520,7 +1712,7 @@ index 0000000..26d805f
 +  )
 +}
 diff --git a/src/components/sider/Sider.module.css b/src/components/sider/Sider.module.css
-index 053be7e..bab4a0c 100644
+index 053be7e..1458af2 100644
 --- a/src/components/sider/Sider.module.css
 +++ b/src/components/sider/Sider.module.css
 @@ -22,6 +22,13 @@
@@ -1663,8 +1855,98 @@ index 053be7e..bab4a0c 100644
      margin-top: 16px;
    }
  
+@@ -245,3 +362,88 @@
+     line-height: 22px;
+   }
+ }
++
++/* 批量选择：顶部标题栏 40px，底部操作条 62px（对齐官网） */
++.batchToolbar {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  flex-shrink: 0;
++  box-sizing: border-box;
++  width: 100%;
++  height: 40px;
++  padding-left: 10px;
++}
++
++.batchTitle {
++  overflow: hidden;
++  font-size: 16px;
++  font-weight: 500;
++  line-height: 24px;
++  color: var(--dsw-alias-label-primary);
++  white-space: nowrap;
++  text-overflow: ellipsis;
++  user-select: none;
++}
++
++.batchClose {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  box-sizing: border-box;
++  width: 28px;
++  height: 28px;
++  padding: 0;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 50%;
++  background: var(--dsw-alias-button-floating-fill, var(--dsw-alias-bg-base));
++  color: var(--dsw-alias-label-secondary);
++  cursor: pointer;
++}
++
++.batchClose:hover {
++  background: var(--dsw-alias-interactive-bg-hover);
++}
++
++.batchBar {
++  display: flex;
++  align-items: center;
++  flex-shrink: 0;
++  box-sizing: border-box;
++  height: 62px;
++  border-top: 1px solid var(--dsw-alias-border-l1);
++}
++
++.batchBarButton {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex: 1;
++  gap: 8px;
++  height: 100%;
++  padding: 0;
++  border: none;
++  background: transparent;
++  color: var(--dsw-alias-label-primary);
++  font-size: 14px;
++  font-weight: 500;
++  line-height: 22px;
++  cursor: pointer;
++}
++
++.batchBarButton:disabled {
++  color: var(--dsw-alias-label-caption, var(--dsw-alias-label-tertiary));
++  cursor: default;
++}
++
++.batchDivider {
++  flex-shrink: 0;
++  width: 1px;
++  height: 24px;
++  background: var(--dsw-alias-border-l1);
++}
++
++.batchDanger {
++  color: var(--dsw-alias-state-error-primary);
++}
+\ No newline at end of file
 diff --git a/src/components/sider/Sider.tsx b/src/components/sider/Sider.tsx
-index 2f3cf56..c78a0d2 100644
+index 2f3cf56..50349a2 100644
 --- a/src/components/sider/Sider.tsx
 +++ b/src/components/sider/Sider.tsx
 @@ -1,10 +1,10 @@
@@ -1672,7 +1954,7 @@ index 2f3cf56..c78a0d2 100644
  import { useEffect, useMemo, useState } from 'react'
  import { useTranslate } from '../../i18n/index.js'
 -import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
-+import { IconPanelLeftOutline16, IconSearchFilled16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
++import { IconCloseFilled16, IconMultiSelectOutline16, IconPanelLeftOutline16, IconPinOutline16, IconSearchFilled16, IconSettingsOutline16, IconTrashOutline16, IconUnpinOutline16, NewChatIcon } from '../base/icons.js'
  import { setSiderCollapsed } from '../../services/settings.js'
  import { groupSessions } from '../../services/chat/sessionGroups.js'
 -import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
@@ -1688,7 +1970,7 @@ index 2f3cf56..c78a0d2 100644
  import { SessionItem } from './SessionItem.js'
  import styles from './Sider.module.css'
  
-@@ -24,6 +25,10 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -24,6 +25,11 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
    const groups = useMemo(() => groupSessions(sessions, now, t), [sessions, now, t])
    const [deleting, setDeleting] = useState<SessionSummary | null>(null)
    const [deletePending, setDeletePending] = useState(false)
@@ -1696,10 +1978,11 @@ index 2f3cf56..c78a0d2 100644
 +  const [selected, setSelected] = useState<Set<string>>(() => new Set())
 +  const [batchPending, setBatchPending] = useState(false)
 +  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
++  const [pinConfirmOpen, setPinConfirmOpen] = useState(false)
  
    useEffect(() => {
      let timer: ReturnType<typeof setTimeout>
-@@ -49,17 +54,68 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -49,18 +55,90 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
      }
    }, [])
  
@@ -1747,6 +2030,18 @@ index 2f3cf56..c78a0d2 100644
 +
    return (
      <div className={clsx(styles.sider, mobile && styles.mobile)}>
++      {selecting ? (
++        <div className={styles.batchToolbar}>
++          <span className={styles.batchTitle}>
++            {selected.size > 0
++              ? t('sessionBatchSelectedCount', { count: selected.size })
++              : t('sessionBatchSelectChatTitle')}
++          </span>
++          <button type="button" className={styles.batchClose} aria-label={t('close')} onClick={exitSelect}>
++            <IconCloseFilled16 />
++          </button>
++        </div>
++      ) : (
        <div className={styles.top}>
 -        <div className={styles.appName}>{t('appName')}</div>
 -        <IconButton
@@ -1758,6 +2053,13 @@ index 2f3cf56..c78a0d2 100644
 -        />
 +        <div className={styles.appName}><img src="/webchat/brand-mark.svg" alt="deepseek" style={{ height: 20, width: 'auto', display: 'block' }} /></div>
 +        <div className={styles.topActions}>
++          <IconButton
++            size="m"
++            icon={<IconMultiSelectOutline16 />}
++            tooltip={t('sessionBatchEntryButton')}
++            tooltipPlacement="bottom"
++            onClick={() => setSelecting(true)}
++          />
 +          <IconButton
 +            size="m"
 +            icon={<IconSearchFilled16 />}
@@ -1774,34 +2076,21 @@ index 2f3cf56..c78a0d2 100644
 +          />
 +        </div>
        </div>
++      )}
++      {selecting ? null : (
        <button
          type="button"
-@@ -74,6 +130,24 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+         className={styles.newChat}
+@@ -74,6 +152,8 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
          </span>
          {t('newChat')}
        </button>
-+      <div className={styles.listHeader}>
-+        {selecting ? (
-+          <>
-+            <span className={styles.batchCount}>{t('sessionBatchSelected', { count: selected.size })}</span>
-+            <button type="button" className={styles.batchAction} disabled={batchPending || selected.size === 0} onClick={() => void runPin()}>
-+              {allPinned ? t('sessionBatchUnpin') : t('sessionBatchPin')}
-+            </button>
-+            <button type="button" className={styles.batchAction} disabled={batchPending || selected.size === 0} onClick={() => setBatchDeleteOpen(true)}>
-+              {t('delete')}
-+            </button>
-+            <button type="button" className={styles.batchExit} onClick={exitSelect}>{t('cancel')}</button>
-+          </>
-+        ) : (
-+          <button type="button" className={styles.selectEntry} onClick={() => setSelecting(true)}>
-+            {t('sessionBatchSelectEnter')}
-+          </button>
-+        )}
-+      </div>
++      )}
++
        <div className={styles.listWrap}>
          <div className={styles.list}>
            {groups.map((group) => (
-@@ -85,6 +159,9 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -85,12 +165,38 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                    session={session}
                    active={session.id === activeId}
                    onDelete={() => setDeleting(session)}
@@ -1811,13 +2100,67 @@ index 2f3cf56..c78a0d2 100644
                  />
                ))}
              </div>
-@@ -99,6 +176,33 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+           ))}
+         </div>
+       </div>
++      {selecting ? (
++        <div className={styles.batchBar}>
++          <button
++            type="button"
++            className={styles.batchBarButton}
++            disabled={batchPending || selected.size === 0}
++            onClick={() => setPinConfirmOpen(true)}
++          >
++            {allPinned ? <IconUnpinOutline16 /> : <IconPinOutline16 />}
++            {allPinned ? t('sessionBatchUnpin') : t('sessionBatchPin')}
++          </button>
++          <span className={styles.batchDivider} />
++          <button
++            type="button"
++            className={clsx(styles.batchBarButton, styles.batchDanger)}
++            disabled={batchPending || selected.size === 0}
++            onClick={() => setBatchDeleteOpen(true)}
++          >
++            <IconTrashOutline16 />
++            {t('delete')}
++          </button>
++        </div>
++      ) : null}
+       <div className={styles.bottom}>
+         <button type="button" className={styles.settings} onClick={() => openSettings('general')}>
+           <span className={styles.settingsIcon}>
+@@ -99,6 +205,58 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
            <span className={styles.settingsLabel}>{t('settings')}</span>
          </button>
        </div>
++      {pinConfirmOpen ? (
++        <Modal
++          title={t(allPinned ? 'sessionBatchUnpinAlert' : 'sessionBatchPinAlert', { count: selected.size })}
++          onClose={() => {
++            if (!batchPending) setPinConfirmOpen(false)
++          }}
++          footer={
++            <>
++              <Button variant="outlined" disabled={batchPending} onClick={() => setPinConfirmOpen(false)}>
++                {t('cancel')}
++              </Button>
++              <Button
++                variant="filled"
++                disabled={batchPending}
++                onClick={() => {
++                  setPinConfirmOpen(false)
++                  void runPin()
++                }}
++              >
++                {allPinned ? t('sessionBatchUnpin') : t('sessionBatchPin')}
++              </Button>
++            </>
++          }
++        />
++      ) : null}
 +      {batchDeleteOpen ? (
 +        <Modal
-+          title={t('sessionBatchDeleteTitle')}
++          title={t('sessionBatchDeleteAlertTitle', { count: selected.size })}
 +          onClose={() => {
 +            if (!batchPending) setBatchDeleteOpen(false)
 +          }}
@@ -1839,7 +2182,7 @@ index 2f3cf56..c78a0d2 100644
 +            </>
 +          }
 +        >
-+          {t('sessionBatchDeleteConfirm', { count: selected.size })}
++          {t('sessionBatchDeleteDescription')}
 +        </Modal>
 +      ) : null}
        {deleting ? (
@@ -1899,7 +2242,7 @@ index 0000000..77baab0
 +
 +export const consumeScrollTarget = () => useSessionSearch.setState({ pending: null })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..4009227 100644
+index 2d49027..77e4f1e 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,10 @@ export const en = {
@@ -1913,7 +2256,7 @@ index 2d49027..4009227 100644
    newChat: 'New chat',
    untitledChat: 'New chat',
    sessionLoading: 'Loading chats...',
-@@ -14,19 +18,29 @@ export const en = {
+@@ -14,19 +18,36 @@ export const en = {
      'Chats or attachments have not been saved locally. Retry before closing this page.',
    sessionDeleteFailed: 'Unable to delete this chat. Please try again.',
    settings: 'Settings',
@@ -1928,6 +2271,13 @@ index 2d49027..4009227 100644
 +  sessionItemMenuUnpinOption: 'Unpin',
    sessionItemMenuRenameOption: 'Rename',
 +  sessionBatchSelectEnter: 'Select chats',
++  sessionBatchSelectChatTitle: 'Select Chats',
++  sessionBatchEntryButton: 'Multi-select',
++  sessionBatchSelectedCount: '{count} selected',
++  sessionBatchPinAlert: 'Pin the selected {count} chats?',
++  sessionBatchUnpinAlert: 'Unpin the selected {count} chats?',
++  sessionBatchDeleteAlertTitle: 'Delete the selected {count} chats',
++  sessionBatchDeleteDescription: 'Deleted chats cannot be recovered. Share links from them will be disabled.',
 +  sessionBatchSelected: '{count} selected',
 +  sessionBatchPin: 'Pin',
 +  sessionBatchUnpin: 'Unpin',
@@ -1944,8 +2294,19 @@ index 2d49027..4009227 100644
    copy: 'Copy',
    copied: 'Copied',
    copyFailed: 'Copy failed. Please long-press or select the text to copy.',
+@@ -42,6 +63,10 @@ export const en = {
+   previousVersion: 'Previous version',
+   nextVersion: 'Next version',
+   searchResult: 'Search results',
++  mermaidZoomIn: 'Zoom in',
++  mermaidZoomOut: 'Zoom out',
++  mermaidZoomReset: 'Reset zoom',
++  scrollToLatest: 'Back to latest',
+   mermaidDiagram: 'Diagram',
+   mermaidCode: 'Code',
+   mermaidEmpty: 'This diagram is empty.',
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..889a116 100644
+index d99f058..4f358c9 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,10 @@ export const zh = {
@@ -1959,7 +2320,7 @@ index d99f058..889a116 100644
    newChat: '开启新对话',
    untitledChat: '新对话',
    sessionLoading: '正在加载对话...',
-@@ -11,18 +15,28 @@ export const zh = {
+@@ -11,18 +15,35 @@ export const zh = {
    sessionSaveFailed: '对话或附件尚未保存到本机，关闭页面可能丢失，请重试',
    sessionDeleteFailed: '删除对话失败，请重试',
    settings: '设置',
@@ -1973,6 +2334,13 @@ index d99f058..889a116 100644
 +  sessionItemMenuUnpinOption: '取消置顶',
    sessionItemMenuRenameOption: '重命名',
 +  sessionBatchSelectEnter: '选择对话',
++  sessionBatchSelectChatTitle: '选择对话',
++  sessionBatchEntryButton: '多选',
++  sessionBatchSelectedCount: '已选择 {count} 项',
++  sessionBatchPinAlert: '将选择的 {count} 个对话置顶？',
++  sessionBatchUnpinAlert: '将选择的 {count} 个对话取消置顶？',
++  sessionBatchDeleteAlertTitle: '删除选择的 {count} 个对话',
++  sessionBatchDeleteDescription: '删除后，对话将不可恢复，由该对话生成的分享链接也将失效。',
 +  sessionBatchSelected: '已选 {count} 项',
 +  sessionBatchPin: '置顶',
 +  sessionBatchUnpin: '取消置顶',
@@ -1989,7 +2357,18 @@ index d99f058..889a116 100644
    copy: '复制',
    copied: '已复制',
    copyFailed: '复制失败，请长按或选中文本后复制',
-@@ -130,7 +144,7 @@ export const zh = {
+@@ -38,6 +59,10 @@ export const zh = {
+   previousVersion: '上一个版本',
+   nextVersion: '下一个版本',
+   searchResult: '搜索结果',
++  mermaidZoomIn: '放大',
++  mermaidZoomOut: '缩小',
++  mermaidZoomReset: '还原',
++  scrollToLatest: '回到最新',
+   mermaidDiagram: '图表',
+   mermaidCode: '代码',
+   mermaidEmpty: '图表为空',
+@@ -130,7 +155,7 @@ export const zh = {
      '上传的文件包含暂未支持的文件格式，请转换文件格式后重试。支持 PDF、DOC、XLSX、PPT、图片、文本、代码等。',
    uploadFileStatusFailed: '上传失败',
    uploadRetry: '{message}，点击重试',
@@ -2276,3 +2655,35 @@ index e0df097..03d85b4 100644
    updatedAt: session.updatedAt,
 +  ...(session.pinned === true ? { pinned: true } : {}),
  })
+diff --git a/src/services/speech/recorder.ts b/src/services/speech/recorder.ts
+index a892f10..92bd14f 100644
+--- a/src/services/speech/recorder.ts
++++ b/src/services/speech/recorder.ts
+@@ -20,10 +20,25 @@ export type Recording = {
+ }
+ 
+ /** 开始录音；到达时长上限时调用 onLimit，由调用方决定何时 stop */
+-export const startRecording = async (onLimit: () => void): Promise<Recording> => {
+-  const stream = await navigator.mediaDevices.getUserMedia({
++/** 宿主主框架若提供麦克风桥，就用它的流；否则回退到本框架 getUserMedia。 */
++const acquireStream = async (): Promise<MediaStream> => {
++  try {
++    const bridge = (window.top as unknown as {
++      __dshPanelMic?: { getStream: () => Promise<MediaStream> }
++    } | null)?.__dshPanelMic
++    if (bridge !== undefined && bridge !== null) {
++      return await bridge.getStream()
++    }
++  } catch {
++    // 跨源或宿主未提供时走默认路径。
++  }
++  return navigator.mediaDevices.getUserMedia({
+     audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+   })
++}
++
++export const startRecording = async (onLimit: () => void): Promise<Recording> => {
++  const stream = await acquireStream()
+   let context: AudioContext | undefined
+   let source: MediaStreamAudioSourceNode | undefined
+   let processor: ScriptProcessorNode | undefined
