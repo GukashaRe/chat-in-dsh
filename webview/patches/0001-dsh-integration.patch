@@ -935,53 +935,21 @@ index 7b90b33..0cea017 100644
 +}
 \ No newline at end of file
 diff --git a/src/components/messages/AssistantMessage.module.css b/src/components/messages/AssistantMessage.module.css
-index b620d69..3590c69 100644
+index b620d69..884f1fa 100644
 --- a/src/components/messages/AssistantMessage.module.css
 +++ b/src/components/messages/AssistantMessage.module.css
-@@ -81,6 +81,28 @@
+@@ -81,6 +81,9 @@
    }
  }
  
 +/* 上下文超长：在回答位置给出引导卡片，不展示服务端原始报错 */
-+.contextLimit {
-+  display: flex;
-+  flex-direction: column;
-+  align-items: flex-start;
-+  box-sizing: border-box;
-+  width: fit-content;
-+  max-width: 100%;
-+  margin-top: 8px;
-+  padding: 14px 16px 16px;
-+  gap: 12px;
-+  border: 1px solid var(--dsw-alias-border-l2);
-+  border-radius: 12px;
-+  background-color: var(--dsw-alias-bg-layer-2);
-+}
 +
-+.contextLimitText {
-+  color: var(--dsw-alias-label-primary);
-+  font-size: 14px;
-+  line-height: 22px;
-+}
 +
  .bottom {
    position: relative;
    left: -6px;
-diff --git a/src/components/messages/AssistantMessage.module.css.d.ts b/src/components/messages/AssistantMessage.module.css.d.ts
-index 3b696e6..029479b 100644
---- a/src/components/messages/AssistantMessage.module.css.d.ts
-+++ b/src/components/messages/AssistantMessage.module.css.d.ts
-@@ -6,6 +6,8 @@ declare const styles: {
-   readonly "fading": string;
-   readonly "notice": string;
-   readonly "noticeAction": string;
-+  readonly "contextLimit": string;
-+  readonly "contextLimitText": string;
-   readonly "bottom": string;
-   readonly "alwaysShow": string;
-   readonly "continueButton": string;
 diff --git a/src/components/messages/AssistantMessage.tsx b/src/components/messages/AssistantMessage.tsx
-index cfeb9e0..ecda249 100644
+index cfeb9e0..19532f4 100644
 --- a/src/components/messages/AssistantMessage.tsx
 +++ b/src/components/messages/AssistantMessage.tsx
 @@ -4,7 +4,7 @@ import { memo } from 'react'
@@ -993,17 +961,15 @@ index cfeb9e0..ecda249 100644
  import { stopReadAloud } from '../../services/speech/readAloud.js'
  import type { AssistantMessage as AssistantMessageType } from '../../services/chat/types.js'
  import { openSettings } from '../settings/settingsDialogState.js'
-@@ -46,7 +46,9 @@ export const AssistantMessage = memo(function AssistantMessage({
+@@ -46,6 +46,8 @@ export const AssistantMessage = memo(function AssistantMessage({
    const t = useTranslate()
    const view = useReplyView(message, streaming)
    const panelEntry = useSearchPanel((state) => state.entry)
--  const notice = streaming ? null : describeReply(message)
 +  // 上下文超长由专用提示卡片说明，不展示服务端返回的原始英文报错。
 +  const contextExceeded = message.contextExceeded === true
-+  const notice = streaming || contextExceeded ? null : describeReply(message)
+   const notice = streaming ? null : describeReply(message)
    // 安全拒绝：已下发的思考与正文按协议丢弃，只显示模板答复。
    const refused = message.stopReason === 'refusal'
-   const answer = refused ? null : view.answer
 @@ -57,7 +59,7 @@ export const AssistantMessage = memo(function AssistantMessage({
    const waiting = streaming && view.steps.length === 0 && !view.answer && !message.thinking
    const summaryEntry = `${message.id}-summary`
@@ -1013,22 +979,7 @@ index cfeb9e0..ecda249 100644
        {refused ? null : (
          <ReplyArea
            message={message}
-@@ -83,6 +85,14 @@ export const AssistantMessage = memo(function AssistantMessage({
-           ))}
-         </div>
-       ) : null}
-+      {contextExceeded ? (
-+        <div className={styles.contextLimit}>
-+          <span className={styles.contextLimitText}>{t('contextLengthExceeded')}</span>
-+          <Button size="s" onClick={newChat}>
-+            {t('newChat')}
-+          </Button>
-+        </div>
-+      ) : null}
-       {notice?.presentation === 'response' ? (
-         <Markdown
-           className="ds-assistant-message-main-content"
-@@ -138,25 +148,27 @@ export const AssistantMessage = memo(function AssistantMessage({
+@@ -138,25 +140,27 @@ export const AssistantMessage = memo(function AssistantMessage({
            </span>
          </div>
        ) : null}
@@ -3431,7 +3382,7 @@ index 0000000..77baab0
 +
 +export const consumeScrollTarget = () => useSessionSearch.setState({ pending: null })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..692202d 100644
+index 2d49027..0ff9210 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,10 @@ export const en = {
@@ -3494,7 +3445,7 @@ index 2d49027..692202d 100644
    mermaidDiagram: 'Diagram',
    mermaidCode: 'Code',
    mermaidEmpty: 'This diagram is empty.',
-@@ -69,11 +94,19 @@ export const en = {
+@@ -69,11 +94,21 @@ export const en = {
    toolFindFailTooltip: 'No related content found',
    readingLink: 'Reading',
    commonNetworkErrorToast: 'Network Error. Please check your network status.',
@@ -3504,6 +3455,8 @@ index 2d49027..692202d 100644
      'The API Key is invalid or has been deleted. Please replace it and try again.',
    replyInsufficientBalance: 'Insufficient account balance. Please top up and try again.',
    replyRateLimited: 'Too many requests. Please try again later.',
++  requestFrequencyTooHigh: 'RPD rate limit reached',
++  completionServerErrorHint: 'Server is temporarily unavailable.',
 +  completionRateLimitReachedToast: 'You are sending messages too frequently. Please wait a moment before sending again.',
 +  completionPromptTooLongToast: 'The message you sent is too long. Please modify it and resend.',
 +  completionServerErrorToast: 'Server is temporarily unavailable.',
@@ -3514,7 +3467,7 @@ index 2d49027..692202d 100644
    unknownError: 'Unknown error',
    replyRefused: "Sorry, that's beyond my current scope. Let's talk about something else.",
    messageThinkDuration: 'Thought for {count} second',
-@@ -155,6 +188,10 @@ export const en = {
+@@ -155,6 +190,10 @@ export const en = {
    uploadDeleteFiles: 'Delete files',
    dragFileToUpload: 'Drop files here to upload',
    dragFileDesc: 'Up to {count} files, {size} MB each',
@@ -3525,13 +3478,13 @@ index 2d49027..692202d 100644
    voiceInput: 'Voice input',
    voiceInputTimer: 'Recording {seconds}s',
    voiceInputStop: 'Stop recording and transcribe',
-@@ -179,3 +216,4 @@ export const en = {
+@@ -179,3 +218,4 @@ export const en = {
    settingsLocaleZhCN: 'Simplified Chinese',
    settingsLocaleEnUS: 'English',
  } satisfies Record<keyof typeof zh, string>
 +
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..5d1417e 100644
+index d99f058..d4bbf46 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,10 @@ export const zh = {
@@ -3593,7 +3546,7 @@ index d99f058..5d1417e 100644
    mermaidDiagram: '图表',
    mermaidCode: '代码',
    mermaidEmpty: '图表为空',
-@@ -66,9 +91,17 @@ export const zh = {
+@@ -66,9 +91,19 @@ export const zh = {
    readingLink: '正在阅读',
    commonNetworkErrorToast: '网络异常，请检查你的网络状况',
    replyInvalidApiKey: 'API Key 无效或已被删除，请更换后重试',
@@ -3602,6 +3555,8 @@ index d99f058..5d1417e 100644
    replyInsufficientBalance: '账户余额不足，请充值后重试',
    replyRateLimited: '请求过于频繁，请稍后再试',
 +  completionRateLimitReachedToast: '你发送消息的频率过快，请稍后再发',
++  requestFrequencyTooHigh: '请求频率过高',
++  completionServerErrorHint: '服务器暂时不可用',
 +  completionPromptTooLongToast: '你输入的信息过长，请调整后重试',
 +  completionServerErrorToast: '当前服务异常，请稍后再试',
 +  hintInvalidParams: '消息未能发送，异常请求',
@@ -3611,7 +3566,7 @@ index d99f058..5d1417e 100644
    unknownError: '未知错误',
    replyRefused: '你好，这个问题我暂时无法回答，让我们换个话题再聊聊吧。',
    messageThinkDuration: '已思考（用时 {count} 秒）',
-@@ -130,7 +163,7 @@ export const zh = {
+@@ -130,7 +165,7 @@ export const zh = {
      '上传的文件包含暂未支持的文件格式，请转换文件格式后重试。支持 PDF、DOC、XLSX、PPT、图片、文本、代码等。',
    uploadFileStatusFailed: '上传失败',
    uploadRetry: '{message}，点击重试',
@@ -3620,7 +3575,7 @@ index d99f058..5d1417e 100644
    deactivatedThinkTooltip: '先思考后回答，解决推理问题',
    thinkingSwitch: '深度思考',
    deactivatedSearchTooltip: '按需搜索网页',
-@@ -147,6 +180,10 @@ export const zh = {
+@@ -147,6 +182,10 @@ export const zh = {
    uploadDeleteFiles: '删除文件',
    dragFileToUpload: '文件拖动到此处即可上传',
    dragFileDesc: '最多 {count} 个，每个 {size}MB',
@@ -3754,10 +3709,21 @@ index a1f58ea..4452070 100644
    const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
    await Promise.all([
 diff --git a/src/services/chat/describe.ts b/src/services/chat/describe.ts
-index 39ac0fa..20e5377 100644
+index 39ac0fa..5da7786 100644
 --- a/src/services/chat/describe.ts
 +++ b/src/services/chat/describe.ts
-@@ -33,15 +33,24 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
+@@ -17,6 +17,10 @@ const getTemplateText = (reply: AssistantMessage) =>
+ 
+ /** 回复出错或未正常结束时展示的提示 */
+ export const describeReply = (reply: AssistantMessage): Notice | null => {
++  // 上下文超长：官网用消息状态 + 服务端 hint 展示，这里走同一条提示行（图标 + 文案）。
++  if (reply.contextExceeded === true) {
++    return { text: translate('contextLengthExceeded') }
++  }
+   if (reply.status === 'error' && reply.error) {
+     const { kind, status, localMessage } = reply.error
+     // 导入的历史可能来自不同版本；不识别的文案沿用保存时的原文。
+@@ -33,15 +37,21 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
      }
      switch (classifyStatus(status)) {
        case 'unauthorized':
@@ -3772,16 +3738,14 @@ index 39ac0fa..20e5377 100644
          return { text: translate('replyInsufficientBalance'), action: 'topUp' }
        case 'rateLimited':
 -        return { text: translate('replyRateLimited') }
-+        return { text: translate('completionRateLimitReachedToast') }
-+      case 'tooLarge':
-+        return { text: translate('completionPromptTooLongToast') }
++        return { text: translate('requestFrequencyTooHigh') }
        case 'serverBusy':
-         return { text: translate('completionServerBusyToast') }
+-        return { text: translate('completionServerBusyToast') }
++        return { text: translate('completionServerErrorHint') }
        default:
 -        return message ? { text: message } : null
-+        // 参数类 400 与无法归类的失败，按官网的通用文案提示，不暴露英文原文。
-+        if (status === 400) return { text: translate('hintInvalidParams') }
-+        return message ? { text: message } : { text: translate('hintFallback') }
++        // 官方对没有专门映射的失败统一用 hintFallback，不暴露英文原文。
++        return { text: translate('hintFallback') }
      }
    }
    const template = getTemplateText(reply)
