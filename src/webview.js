@@ -285,6 +285,29 @@ async function selfTest(ctx, config) {
 }
 
 /**
+ * 插件路由不在 DSH 的 /api 信任栅栏内，必须自己调用 Connection 的
+ * Host/Origin 校验和浏览器认证；否则任何网页都能借已登录的 DSH 调用转发接口。
+ * 桌面 App 自身窗口（dsh-app:）不走浏览器 Cookie，直接放行。
+ * @returns {number | undefined} 拒绝状态码，放行时为 undefined
+ */
+function untrustedRejection(ctx, req) {
+  const origin = String(req.headers?.origin ?? '')
+  if (origin.startsWith('dsh-app:')) return undefined
+  let connection
+  try {
+    connection = ctx.get('connection')
+  } catch {
+    return undefined
+  }
+  if (connection === undefined || typeof connection.requestRejection !== 'function') return undefined
+  try {
+    return connection.requestRejection(req)
+  } catch {
+    return 401
+  }
+}
+
+/**
  * 建立请求处理器（Node 原生 req/res）。
  * @param {import('@deepseek-ai/cordis').Context} ctx
  * @param {{ baseURL?: string }} config
@@ -296,6 +319,13 @@ export function createWebview(ctx, config, home) {
     const { pathname } = url
     const method = (req.method ?? 'GET').toUpperCase()
     const isGet = method === 'GET' || method === 'HEAD'
+
+    // 与 DSH 自己的 /api 一样要求可信 Host/Origin 与已登录浏览器凭据。
+    const rejection = untrustedRejection(ctx, req)
+    if (rejection !== undefined) {
+      sendJson(res, { error: { message: rejection === 403 ? '请求来源不受信任' : '需要 DSH 登录' } }, rejection)
+      return
+    }
 
     // ---- 从 DSH 一次性导入 ----
     if (pathname === '/webchat/api/import/stage' && method === 'POST') {

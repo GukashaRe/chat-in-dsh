@@ -84,6 +84,8 @@
 
 这个插件基于 DeepSeek 官方开源的 [chat-demo](https://github.com/deepseek-ai/chat-demo) 开发。请求发往哪里、左上角的标识、藏起 API Key 输入框是为接入 DSH 所做的改动；其余界面与交互按官网逐项复刻。
 
+面板的 HTTP 路由复用 DSH 的浏览器认证（Host/Origin 校验 + 登录 Cookie），未登录的请求返回 401；桌面 App 自身窗口直接放行。
+
 官方 chat-demo 只是网页版的骨架：界面在，但网页版里不少已有的交互它没有做。我们在它之上把这些补齐，让它更接近 chat.deepseek.com 本身：
 
 - 会话搜索：按标题、正文、思考过程和附件名检索；命中标题单独成行，消息命中带分支序号
