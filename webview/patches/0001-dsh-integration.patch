@@ -119,10 +119,10 @@ index 7fbb107..af18578 100644
      const spaceBelow = window.innerHeight - rect.bottom - offset - VIEWPORT_PADDING
  
 diff --git a/src/components/base/icons.tsx b/src/components/base/icons.tsx
-index 25f10ea..1316abc 100644
+index 25f10ea..8045573 100644
 --- a/src/components/base/icons.tsx
 +++ b/src/components/base/icons.tsx
-@@ -523,3 +523,58 @@ export const IconToastError16 = () => (
+@@ -523,3 +523,84 @@ export const IconToastError16 = () => (
      />
    </svg>
  )
@@ -179,6 +179,32 @@ index 25f10ea..1316abc 100644
 +      <path d="M4.31055 10.3903C4.31055 9.61068 3.71825 8.9692 2.95898 8.89221L2.80566 8.8844C1.9742 8.8844 1.2998 9.5588 1.2998 10.3903L1.30762 10.5436C1.37947 11.2522 1.94276 11.8153 2.65137 11.8873L2.80566 11.8951C3.58507 11.895 4.22575 11.3027 4.30273 10.5436L4.31055 10.3903ZM5.61035 10.3903C5.61016 11.9394 4.35481 13.1947 2.80566 13.1949C1.25635 13.1949 0.000196493 11.9395 0 10.3903C0 8.84083 1.25623 7.58459 2.80566 7.58459C4.35493 7.58479 5.61035 8.84095 5.61035 10.3903Z" fill="currentColor" />
 +      <path d="M4.31091 2.80566C4.31091 2.02619 3.7185 1.38466 2.95935 1.30762L2.80603 1.2998C1.97463 1.2998 1.30017 1.97426 1.30017 2.80566L1.30798 2.95898C1.37989 3.66756 1.94316 4.23082 2.65173 4.30273L2.80603 4.31055C3.58529 4.3103 4.22608 3.71798 4.3031 2.95898L4.31091 2.80566ZM5.61072 2.80566C5.61046 4.35465 4.35502 5.61009 2.80603 5.61035C1.25682 5.61035 0.000624607 4.35481 0.000366211 2.80566C0.000366211 1.25629 1.25666 0 2.80603 0C4.35518 0.000258397 5.61072 1.25645 5.61072 2.80566Z" fill="currentColor" />
 +    </g>
++  </svg>
++)
++export const IconAssistantAvatar20 = () => (
++  <svg width={20} height={20} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path
++      d="M10 2C5.58162 2 2.00003 5.58162 2 10C2 11.2255 2.27557 12.3887 2.76953 13.4287L3.07422 14.0674L4.35059 13.4609L4.04785 12.8223L3.90332 12.4971C3.58796 11.7279 3.41406 10.8848 3.41406 10C3.41409 6.36278 6.36277 3.41407 10 3.41406C13.6372 3.41406 16.5859 6.36278 16.5859 10C16.5859 13.6372 13.6372 16.5859 10 16.5859C9.25515 16.5859 8.70984 16.5329 8.22656 16.3994C7.75059 16.2679 7.29925 16.0478 6.75879 15.6709C5.96644 15.1182 4.82978 14.9233 3.89355 15.5146L3.86426 15.5342L3.24121 15.9727L3.70996 17.3721L4.65918 16.7041C5.00017 16.4952 5.50572 16.5226 5.94824 16.8311C6.58879 17.2779 7.18624 17.5792 7.85059 17.7627C8.50781 17.9442 9.19541 18 10 18C14.4184 18 18 14.4184 18 10C18 5.58162 14.4184 2 10 2ZM6.25 10.5566V11.9707H10.1367V10.5566H6.25ZM6.25 9.23438H13.7852V7.82031H6.25V9.23438Z"
++      fill="currentColor"
++    />
++  </svg>
++)
++
++export const IconArrowDown14 = () => (
++  <svg width={14} height={14} viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path
++      d="M11.8486 5.5L11.4238 5.92383L8.69727 8.65137C8.44157 8.90706 8.21562 9.13382 8.01172 9.29785C7.79912 9.46883 7.55595 9.61756 7.25 9.66602C7.08435 9.69222 6.91565 9.69222 6.75 9.66602C6.44405 9.61756 6.20088 9.46883 5.98828 9.29785C5.78438 9.13382 5.55843 8.90706 5.30273 8.65137L2.57617 5.92383L2.15137 5.5L3 4.65137L3.42383 5.07617L6.15137 7.80273C6.42595 8.07732 6.59876 8.24849 6.74023 8.3623C6.87291 8.46904 6.92272 8.47813 6.9375 8.48047C6.97895 8.48703 7.02105 8.48703 7.0625 8.48047C7.07728 8.47813 7.12709 8.46904 7.25977 8.3623C7.40124 8.24849 7.57405 8.07732 7.84863 7.80273L10.5762 5.07617L11 4.65137L11.8486 5.5Z"
++      fill="currentColor"
++    />
++  </svg>
++)
++
++export const WelcomeWhale = () => (
++  <svg viewBox="0 0 35 26" width={34} height={25} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
++    <path
++      fill="currentColor"
++      d="M33.615 2.598c-.36-.176-.515.16-.726.33-.072.055-.132.127-.193.193-.526.562-1.14.93-1.943.887-1.174-.067-2.176.302-3.062 1.2-.188-1.107-.814-1.767-1.766-2.191-.498-.22-1.002-.441-1.35-.92-.244-.341-.31-.721-.433-1.096-.077-.226-.154-.457-.415-.496-.282-.044-.393.193-.504.391-.443.81-.614 1.702-.598 2.605.04 2.033.898 3.652 2.603 4.803.193.132.243.264.182.457-.116.397-.254.782-.376 1.179-.078.253-.194.308-.465.198-.936-.391-1.744-.97-2.458-1.669-1.213-1.173-2.31-2.467-3.676-3.48a16.254 16.254 0 0 0-.975-.668c-1.395-1.354.183-2.467.548-2.599.382-.138.133-.612-1.102-.606-1.234.005-2.364.42-3.803.97a4.34 4.34 0 0 1-.66.193 13.577 13.577 0 0 0-4.08-.143c-2.667.297-4.799 1.558-6.365 3.712C.116 8.436-.327 11.378.215 14.444c.57 3.233 2.22 5.91 4.755 8.002 2.63 2.17 5.658 3.233 9.113 3.03 2.098-.122 4.434-.403 7.07-2.633.664.33 1.362.463 2.518.562.892.083 1.75-.044 2.414-.182 1.04-.22.97-1.184.593-1.36-3.05-1.421-2.38-.843-2.99-1.311 1.55-1.834 3.918-5.093 4.648-9.531.072-.49.164-1.18.153-1.577-.006-.242.05-.336.326-.364a5.903 5.903 0 0 0 2.187-.672c1.977-1.08 2.774-2.853 2.962-4.978.028-.325-.006-.661-.35-.832Z"
++    />
 +  </svg>
 +)
 diff --git a/src/components/chatInput/ChatInput.tsx b/src/components/chatInput/ChatInput.tsx
@@ -732,7 +758,7 @@ index cfeb9e0..8e60dd2 100644
          <ReplyArea
            message={message}
 diff --git a/src/components/messages/MessageList.module.css b/src/components/messages/MessageList.module.css
-index 31f7b73..2877fda 100644
+index 31f7b73..c8250d0 100644
 --- a/src/components/messages/MessageList.module.css
 +++ b/src/components/messages/MessageList.module.css
 @@ -1,3 +1,11 @@
@@ -771,15 +797,15 @@ index 31f7b73..2877fda 100644
 +
 +.scrollDown {
 +  position: absolute;
-+  right: 20px;
++  right: 12px;
 +  z-index: 9;
 +  display: flex;
 +  align-items: center;
 +  justify-content: center;
-+  width: 36px;
-+  height: 36px;
++  width: 34px;
++  height: 34px;
 +  padding: 0;
-+  border: 1px solid var(--dsw-alias-border-l2);
++  border: none;
 +  border-radius: 50%;
 +  background: var(--dsw-alias-bg-layer-2);
 +  color: var(--dsw-alias-label-secondary);
@@ -792,13 +818,13 @@ index 31f7b73..2877fda 100644
 +}
 \ No newline at end of file
 diff --git a/src/components/messages/MessageList.tsx b/src/components/messages/MessageList.tsx
-index 6b8c0e9..f88685d 100644
+index 6b8c0e9..c1c01ba 100644
 --- a/src/components/messages/MessageList.tsx
 +++ b/src/components/messages/MessageList.tsx
 @@ -1,4 +1,6 @@
  import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
-+import { IconChevronDownOutline14 } from '../base/icons.js'
++import { IconArrowDown14 } from '../base/icons.js'
  import { useIsMobile } from '../../app/viewport.js'
  import {
    buildMessageVersions,
@@ -889,7 +915,7 @@ index 6b8c0e9..f88685d 100644
 +        <button
 +          type="button"
 +          className={styles.scrollDown}
-+          style={{ bottom: footerHeight + 12 }}
++          style={{ bottom: footerHeight + 20 }}
 +          aria-label={t('scrollToLatest')}
 +          onClick={() => {
 +            stickyRef.current = true
@@ -897,7 +923,7 @@ index 6b8c0e9..f88685d 100644
 +            setShowScrollDown(false)
 +          }}
 +        >
-+          <IconChevronDownOutline14 />
++          <IconArrowDown14 />
 +        </button>
 +      ) : null}
 +      {!isMobile && <TurnRail scrollRef={scrollRef} messages={messages} versions={versions} />}
@@ -1357,25 +1383,73 @@ index c7f5d3d..dc0027d 100644
      margin: auto 0;
    }
 diff --git a/src/components/session/Welcome.tsx b/src/components/session/Welcome.tsx
-index 95f2729..eae2ca0 100644
+index 95f2729..c0ec8ee 100644
 --- a/src/components/session/Welcome.tsx
 +++ b/src/components/session/Welcome.tsx
-@@ -1,6 +1,7 @@
+@@ -1,18 +1,23 @@
  import { useIsMobile } from '../../app/viewport.js'
++import { useState } from 'react'
  import { useTranslate } from '../../i18n/index.js'
  import { ChatInput } from '../chatInput/ChatInput.js'
-+import { WhaleGlyph } from '../sider/sessionSearchGlyphs.js'
++import { WelcomeWhale } from '../base/icons.js'
++import { pickWelcomeMessage } from './welcomeGreetings.js'
  import { MobileHeader } from './MobileHeader.js'
  import styles from './Welcome.module.css'
  
-@@ -12,6 +13,7 @@ export const Welcome = () => {
+ /** 新对话：问候语 + 输入框。桌面端居中；移动端输入框吸底 */
+ export const Welcome = () => {
+   const t = useTranslate()
++  const [greeting] = useState(() => pickWelcomeMessage())
+   const isMobile = useIsMobile()
+   return (
      <div className={styles.container}>
        {isMobile ? <MobileHeader /> : null}
        <div className={styles.welcome}>
-+        <div className={styles.whale}><WhaleGlyph size={40} /></div>
-         <div className={styles.greeting}>{t('welcomeMessageChat250808')}</div>
+-        <div className={styles.greeting}>{t('welcomeMessageChat250808')}</div>
++        <div className={styles.whale}><WelcomeWhale /></div>
++        <div className={styles.greeting}>{greeting}</div>
          <ChatInput sessionId={null} />
          {isMobile ? <div className={styles.caveat}>{t('contentCaveat')}</div> : null}
+       </div>
+diff --git a/src/components/session/welcomeGreetings.ts b/src/components/session/welcomeGreetings.ts
+new file mode 100644
+index 0000000..0318dee
+--- /dev/null
++++ b/src/components/session/welcomeGreetings.ts
+@@ -0,0 +1,32 @@
++/** 官网下发的 12 条问候语与分时段规则（分钟数，左闭右开）。 */
++const MESSAGES = [
++  '你好，我能帮什么忙吗？',
++  '你好，有什么我能帮你的吗？',
++  '你好，让我们开始聊天吧',
++  '嗨！今天想聊些什么？',
++  '欢迎回来，随时开始吧',
++  '欢迎回来，想从哪里开始？',
++  '早上好，今天有什么计划？',
++  '早上好，今天想做点什么？',
++  '早上好，开始聊天吧',
++  '早上好，今天想聊些什么？',
++  '下午好，我能帮什么忙吗？',
++  '晚上好，有什么我能帮你的吗？',
++]
++
++const SLOTS: { start: number; end: number; use: number[] }[] = [
++  { start: 360, end: 660, use: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
++  { start: 780, end: 1050, use: [0, 1, 2, 3, 4, 5, 10] },
++  { start: 1050, end: 1320, use: [0, 1, 2, 3, 4, 5, 11] },
++]
++
++const FALLBACK = [0, 1, 2, 3, 4, 5]
++
++/** 按官网规则挑一条问候语：先按当前时间段取候选集，再在候选里随机。 */
++export const pickWelcomeMessage = (now = new Date()): string => {
++  const minutes = now.getHours() * 60 + now.getMinutes()
++  const slot = SLOTS.find((item) => minutes >= item.start && minutes < item.end)
++  const pool = slot?.use ?? FALLBACK
++  const index = pool[Math.floor(Math.random() * pool.length)] ?? 0
++  return MESSAGES[index]
++}
+\ No newline at end of file
 diff --git a/src/components/settings/SettingsDialog.tsx b/src/components/settings/SettingsDialog.tsx
 index a74b591..643453b 100644
 --- a/src/components/settings/SettingsDialog.tsx
@@ -1675,10 +1749,10 @@ index c50dd62..859c46b 100644
  })
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
-index 0000000..5a05ac2
+index 0000000..767b8d2
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.module.css
-@@ -0,0 +1,234 @@
+@@ -0,0 +1,293 @@
 +/* 尺寸与结构对齐官网：660px 宽、72vh 高、结果行最小 67px。 */
 +.overlay {
 +  position: fixed;
@@ -1836,14 +1910,14 @@ index 0000000..5a05ac2
 +  flex-shrink: 0;
 +  width: 40px;
 +  height: 40px;
-+  border: 2px solid var(--dsw-alias-bg-layer-2);
++  border: 1px solid var(--dsw-alias-border-l2);
 +  border-radius: 50%;
-+  background: rgba(0, 0, 0, 0.05);
-+  color: var(--dsw-alias-label-secondary);
++  background: transparent;
++  color: var(--dsw-alias-label-tertiary);
 +}
 +
-+.glyph[data-role='assistant'] {
-+  color: var(--dsw-alias-brand-text);
++.glyph svg {\n  width: 20px;\n  height: 20px;\n}\n\n.glyph[data-role='assistant'] {
++  color: var(--dsw-alias-label-tertiary);
 +}
 +
 +.body {
@@ -1894,6 +1968,17 @@ index 0000000..5a05ac2
 +  color: inherit;
 +}
 +
++.markBody {
++  background: none;
++  font-weight: 500;
++  color: inherit;
++}
++
++.branchTag {
++  margin-right: 2px;
++  color: var(--dsw-alias-label-tertiary);
++}
++
 +.empty {
 +  padding: 48px 16px;
 +  text-align: center;
@@ -1913,17 +1998,66 @@ index 0000000..5a05ac2
 +    border-radius: 0;
 +  }
 +}
++
++/* 加载骨架：与结果行同高 67px */
++.skeletonList {
++  display: flex;
++  flex-direction: column;
++}
++
++.skeletonRow {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++  box-sizing: border-box;
++  width: 100%;
++  height: 67px;
++  padding: 10px 12px 10px 10px;
++}
++
++.skeletonAvatar {
++  flex-shrink: 0;
++  width: 40px;
++  height: 40px;
++  border-radius: 50%;
++  background: var(--dsw-alias-interactive-bg-hover);
++}
++
++.skeletonBody {
++  display: flex;
++  flex-direction: column;
++  flex: 1;
++  gap: 8px;
++}
++
++.skeletonLine,
++.skeletonLineShort {
++  display: block;
++  height: 14px;
++  border-radius: 6px;
++  background: var(--dsw-alias-interactive-bg-hover);
++}
++
++.skeletonLine {
++  width: 45%;
++}
++
++.skeletonLineShort {
++  width: 70%;
++  opacity: 0.7;
++}
+\ No newline at end of file
 diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
 new file mode 100644
-index 0000000..26d805f
+index 0000000..22d97ba
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.tsx
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,303 @@
 +import { useEffect, useRef, useState } from 'react'
 +import type { KeyboardEvent } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
 +import { useSettings } from '../../services/settings.js'
-+import { IconCloseFilled16, IconSearchFilled16 } from '../base/icons.js'
++import { IconAssistantAvatar20, IconCloseFilled16, IconSearchFilled16 } from '../base/icons.js'
 +import { loadSession } from '../../services/chat/db.js'
 +import { revealMessage, selectSession, useChatStore } from '../../services/chat/store.js'
 +import type { Message } from '../../services/chat/types.js'
@@ -1933,7 +2067,7 @@ index 0000000..26d805f
 +  setSessionSearchQuery,
 +  useSessionSearch,
 +} from './sessionSearchState.js'
-+import { UserGlyph, WhaleGlyph } from './sessionSearchGlyphs.js'
++import { UserGlyph } from './sessionSearchGlyphs.js'
 +import styles from './SessionSearch.module.css'
 +
 +/** 一条命中：标题行或消息行。 */
@@ -1945,6 +2079,8 @@ index 0000000..26d805f
 +  snippet: string
 +  at: number
 +  role: Message['role']
++  branchAt?: number
++  branches?: number
 +}
 +
 +const MAX_HITS = 60
@@ -2056,6 +2192,13 @@ index 0000000..26d805f
 +              role: 'assistant',
 +            })
 +          }
++          const siblings = new Map<string | null, string[]>()
++          for (const message of session.messages) {
++            const key = message.parentId ?? null
++            const list = siblings.get(key)
++            if (list === undefined) siblings.set(key, [message.id])
++            else list.push(message.id)
++          }
 +          for (const message of session.messages) {
 +            const text = messageText(message)
 +            const index = text.toLowerCase().indexOf(needle)
@@ -2068,6 +2211,10 @@ index 0000000..26d805f
 +              snippet: makeSnippet(text, index, needle.length),
 +              at: message.createdAt,
 +              role: message.role,
++              ...(() => {
++                const ids = siblings.get(message.parentId ?? null) ?? [message.id]
++                return ids.length > 1 ? { branchAt: ids.indexOf(message.id) + 1, branches: ids.length } : {}
++              })(),
 +            })
 +          }
 +        }
@@ -2154,7 +2301,21 @@ index 0000000..26d805f
 +        </div>
 +        <div className={styles.list} role="listbox" aria-label={t('searchSessionsButton')} ref={listRef}>
 +          {needle.length === 0 ? null : hits.length === 0 ? (
-+            <div className={styles.empty}>{searching ? t('searchSessionsSearching') : t('searchSessionsNoResult')}</div>
++            searching ? (
++              <div className={styles.skeletonList}>
++                {[0, 1, 2].map((row) => (
++                  <div key={row} className={styles.skeletonRow}>
++                    <span className={styles.skeletonAvatar} />
++                    <span className={styles.skeletonBody}>
++                      <span className={styles.skeletonLine} />
++                      <span className={styles.skeletonLineShort} />
++                    </span>
++                  </div>
++                ))}
++              </div>
++            ) : (
++              <div className={styles.empty}>{t('searchSessionsNoResult')}</div>
++            )
 +          ) : (
 +            hits.map((hit, index) => (
 +              <button
@@ -2170,7 +2331,7 @@ index 0000000..26d805f
 +                onClick={() => choose(hit)}
 +              >
 +                <span className={styles.glyph} data-role={hit.role}>
-+                  {hit.role === 'user' ? <UserGlyph /> : <WhaleGlyph />}
++                  {hit.role === 'user' ? <UserGlyph /> : <IconAssistantAvatar20 />}
 +                </span>
 +                <span className={styles.body}>
 +                  <span className={styles.titleRow}>
@@ -2178,7 +2339,12 @@ index 0000000..26d805f
 +                    <span className={styles.date}>{formatDate(hit.at, locale, t)}</span>
 +                  </span>
 +                  {hit.kind === 'message' ? (
-+                    <span className={styles.snippet}>{highlight(hit.snippet, needle, styles.mark)}</span>
++                    <span className={styles.snippet}>
++                      {hit.branches !== undefined && hit.branches > 1 ? (
++                        <span className={styles.branchTag}>{'‹'} {hit.branchAt}/{hit.branches}</span>
++                      ) : null}
++                      {highlight(hit.snippet, needle, styles.markBody)}
++                    </span>
 +                  ) : null}
 +                </span>
 +              </button>
