@@ -12,18 +12,52 @@ index b236b4d..ffe5052 100644
  }: ConfigOptions = {}): Configuration => ({
    mode: dev ? 'development' : 'production',
 diff --git a/src/app/App.tsx b/src/app/App.tsx
-index d204c0f..db67a72 100644
+index d204c0f..1ebe18c 100644
 --- a/src/app/App.tsx
 +++ b/src/app/App.tsx
-@@ -10,6 +10,7 @@ import {
+@@ -1,6 +1,6 @@
+ import { useEffect } from 'react'
+ import { useTranslate } from '../i18n/index.js'
+-import { useSettings } from '../services/settings.js'
++import { setSiderCollapsed, useSettings } from '../services/settings.js'
+ import { useIsMobile, useMobileViewport, usePreventPageScroll } from './viewport.js'
+ import {
+   bindChatPersistence,
+@@ -10,7 +10,9 @@ import {
    useChatStore,
  } from '../services/chat/store.js'
  import { SearchPanel } from '../components/search/SearchPanel.js'
 +import { SessionSearch } from '../components/sider/SessionSearch.js'
  import { closeSearchPanel } from '../components/search/searchPanelState.js'
++import { openSessionSearch } from '../components/sider/sessionSearchState.js'
  import { SessionView } from '../components/session/SessionView.js'
  import { MobileHeader } from '../components/session/MobileHeader.js'
-@@ -131,6 +132,7 @@ export const App = () => {
+ import { Welcome } from '../components/session/Welcome.js'
+@@ -62,6 +64,23 @@ export const App = () => {
+ 
+   // 搜索结果面板只属于当前会话
+   useEffect(closeSearchPanel, [activeId])
++
++  // 官网快捷键：⌘/Ctrl+K 搜索，⌘/Ctrl+J 收起或展开侧栏
++  useEffect(() => {
++    const onKeyDown = (event: KeyboardEvent) => {
++      if (!(event.metaKey || event.ctrlKey) || event.altKey) return
++      const key = event.key.toLowerCase()
++      if (key === 'k') {
++        event.preventDefault()
++        openSessionSearch()
++      } else if (key === 'j') {
++        event.preventDefault()
++        setSiderCollapsed(!useSettings.getState().siderCollapsed)
++      }
++    }
++    window.addEventListener('keydown', onKeyDown)
++    return () => window.removeEventListener('keydown', onKeyDown)
++  }, [])
+   // 切换会话时停止朗读
+   useEffect(stopReadAloud, [activeId])
+   // 移动端选中会话、切换布局后收起抽屉
+@@ -131,6 +150,7 @@ export const App = () => {
            </div>
          </main>
          <SearchPanel />
@@ -183,7 +217,7 @@ index 31f7b73..dfe1ad1 100644
      scrollbar-gutter: auto;
    }
 diff --git a/src/components/messages/MessageList.tsx b/src/components/messages/MessageList.tsx
-index 6b8c0e9..17d496f 100644
+index 6b8c0e9..788a1b5 100644
 --- a/src/components/messages/MessageList.tsx
 +++ b/src/components/messages/MessageList.tsx
 @@ -10,6 +10,8 @@ import type { Session } from '../../services/chat/types.js'
@@ -195,24 +229,33 @@ index 6b8c0e9..17d496f 100644
  import { UserMessage } from './UserMessage.js'
  import type { Message } from '../../services/chat/types.js'
  
-@@ -101,6 +103,16 @@ export const MessageList = ({
+@@ -101,6 +103,25 @@ export const MessageList = ({
  
    useEffect(closeSearchPanel, [session.id, lastMessageId])
  
-+  // 搜索结果带消息 id：等会话加载出消息后滚到该条，再清掉请求
++  // 搜索结果带消息 id：等会话和分支就绪后滚到该条；目标已失效时清掉请求，避免一直挂着
 +  const pendingScroll = useSessionSearch(state => state.pending)
 +  useLayoutEffect(() => {
-+    if (pendingScroll === null || pendingScroll.sessionId !== session.id) return
++    if (pendingScroll === null) return
++    if (pendingScroll.sessionId !== session.id) {
++      consumeScrollTarget()
++      return
++    }
 +    const scroll = scrollRef.current
 +    const node = scroll?.querySelector(`[data-message-id="${CSS.escape(pendingScroll.messageId)}"]`)
-+    if (scroll === null || node == null) return
-+    scroll.scrollTop += node.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16
-+    consumeScrollTarget()
-+  }, [pendingScroll, session.id, messages.length])
++    if (scroll !== null && node != null) {
++      scroll.scrollTop += node.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16
++      consumeScrollTarget()
++      return
++    }
++    if (session.messages.length > 0) {
++      consumeScrollTarget()
++    }
++  }, [pendingScroll, session.id, session.messages])
    const selectVersion = useCallback(
      (messageId: string, anchorTop: number) => {
        if (streaming) {
-@@ -143,6 +155,7 @@ export const MessageList = ({
+@@ -143,6 +164,7 @@ export const MessageList = ({
    const uploadRetryId = getUploadRetryId(messages, streaming)
    return (
      <ScrollToBottomContext.Provider value={scrollToBottom}>
@@ -220,21 +263,21 @@ index 6b8c0e9..17d496f 100644
        <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
          <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
            <div ref={contentRef} className={styles.column}>
-@@ -176,6 +189,8 @@ export const MessageList = ({
+@@ -176,6 +198,8 @@ export const MessageList = ({
          </div>
          {footer}
        </div>
-+      {!isMobile && <TurnRail scrollRef={scrollRef} messages={messages} />}
++      {!isMobile && <TurnRail scrollRef={scrollRef} messages={messages} versions={versions} />}
 +      </div>
      </ScrollToBottomContext.Provider>
    )
  }
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
-index 0000000..9ae8198
+index 0000000..78156a3
 --- /dev/null
 +++ b/src/components/messages/TurnRail.module.css
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,225 @@
 +/* 官方 scrollNav 的尺寸：行高 30px、短刻度 8×2、圆角 4px、容器最多 240px 宽。 */
 +.rail {
 +  position: absolute;
@@ -297,8 +340,8 @@ index 0000000..9ae8198
 +  transform: rotate(180deg);
 +}
 +
-+.rail[data-show='true'] .nav::before,
-+.rail[data-show='true'] .nav::after {
++.rail[data-show='true'] .nav[data-top='true']::before,
++.rail[data-show='true'] .nav[data-bottom='true']::after {
 +  opacity: 1;
 +}
 +
@@ -332,6 +375,23 @@ index 0000000..9ae8198
 +  cursor: pointer;
 +}
 +
++.branchTag {
++  flex-shrink: 0;
++  margin-right: 6px;
++  padding: 0 4px;
++  border-radius: 4px;
++  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
++  color: var(--dsw-alias-label-tertiary);
++  font: var(--dsw-font-xs-13);
++  line-height: 18px;
++  opacity: 0;
++  transition: opacity 0.1s;
++}
++
++.rail[data-show='true'] .branchTag {
++  opacity: 1;
++}
++
 +.itemTitle {
 +  flex: 1;
 +  min-width: 0;
@@ -347,15 +407,66 @@ index 0000000..9ae8198
 +    color 0.2s;
 +}
 +
-+.rail[data-show='true'] .itemTitle {
++.rail[data-show='true'] .branchTag {
++  flex-shrink: 0;
++  margin-right: 6px;
++  padding: 0 4px;
++  border-radius: 4px;
++  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
++  color: var(--dsw-alias-label-tertiary);
++  font: var(--dsw-font-xs-13);
++  line-height: 18px;
++  opacity: 0;
++  transition: opacity 0.1s;
++}
++
++.rail[data-show='true'] .branchTag {
 +  opacity: 1;
 +}
 +
-+.item:hover .itemTitle {
++.itemTitle {
++  opacity: 1;
++}
++
++.item:hover .branchTag {
++  flex-shrink: 0;
++  margin-right: 6px;
++  padding: 0 4px;
++  border-radius: 4px;
++  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
++  color: var(--dsw-alias-label-tertiary);
++  font: var(--dsw-font-xs-13);
++  line-height: 18px;
++  opacity: 0;
++  transition: opacity 0.1s;
++}
++
++.rail[data-show='true'] .branchTag {
++  opacity: 1;
++}
++
++.itemTitle {
 +  color: var(--dsw-alias-label-primary);
 +}
 +
-+.item[data-active='true'] .itemTitle {
++.item[data-active='true'] .branchTag {
++  flex-shrink: 0;
++  margin-right: 6px;
++  padding: 0 4px;
++  border-radius: 4px;
++  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
++  color: var(--dsw-alias-label-tertiary);
++  font: var(--dsw-font-xs-13);
++  line-height: 18px;
++  opacity: 0;
++  transition: opacity 0.1s;
++}
++
++.rail[data-show='true'] .branchTag {
++  opacity: 1;
++}
++
++.itemTitle {
 +  color: var(--dsw-alias-brand-text);
 +  font-weight: 500;
 +}
@@ -394,13 +505,14 @@ index 0000000..9ae8198
 +}
 diff --git a/src/components/messages/TurnRail.tsx b/src/components/messages/TurnRail.tsx
 new file mode 100644
-index 0000000..cffe142
+index 0000000..4baab19
 --- /dev/null
 +++ b/src/components/messages/TurnRail.tsx
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,131 @@
 +import type { RefObject } from 'react'
-+import { useEffect, useMemo, useState } from 'react'
++import { useEffect, useMemo, useRef, useState } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
++import type { MessageVersions } from '../../services/chat/branches.js'
 +import type { Message } from '../../services/chat/types.js'
 +import styles from './TurnRail.module.css'
 +
@@ -414,22 +526,30 @@ index 0000000..cffe142
 +export const TurnRail = ({
 +  scrollRef,
 +  messages,
++  versions,
 +}: {
 +  scrollRef: RefObject<HTMLDivElement | null>
 +  messages: Message[]
++  versions: ReadonlyMap<string, MessageVersions>
 +}) => {
 +  const t = useTranslate()
++  const pageRef = useRef<HTMLDivElement>(null)
 +  const turns = useMemo<Turn[]>(() => messages
 +    .filter(message => message.role === 'user')
 +    .map(message => ({ id: message.id, text: message.content.replace(/\s+/g, ' ').trim() })), [messages])
 +  const [show, setShow] = useState(false)
 +  const [active, setActive] = useState(0)
++  const [edges, setEdges] = useState({ top: false, bottom: false })
 +
++  // 正文滚动时同步当前轮；落到回答里时归到它所属的提问
 +  useEffect(() => {
 +    const scroll = scrollRef.current
 +    if (scroll === null || turns.length === 0) return
 +    const update = () => {
-+      // 参考线：正文顶部往下 40px；落在某条回答里时仍归到它所属的提问
++      if (scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 2) {
++        setActive(turns.length - 1)
++        return
++      }
 +      const line = scroll.getBoundingClientRect().top + 40
 +      let index = 0
 +      turns.forEach((turn, position) => {
@@ -446,6 +566,30 @@ index 0000000..cffe142
 +      window.removeEventListener('resize', update)
 +    }
 +  }, [scrollRef, turns])
++
++  // 当前轮在导航窗口外时，只滚动导航自身，不动正文
++  useEffect(() => {
++    const page = pageRef.current
++    if (page === null) return
++    const item = page.querySelector<HTMLElement>(`[data-turn-index="${active}"]`)
++    if (item === null) return
++    if (item.offsetTop < page.scrollTop) {
++      page.scrollTop = item.offsetTop
++    } else if (item.offsetTop + item.offsetHeight > page.scrollTop + page.clientHeight) {
++      page.scrollTop = item.offsetTop + item.offsetHeight - page.clientHeight
++    }
++  }, [active, show])
++
++  // 只有真溢出的一侧才需要渐隐遮罩
++  const updateEdges = () => {
++    const page = pageRef.current
++    if (page === null) return
++    setEdges({
++      top: page.scrollTop > 1,
++      bottom: page.scrollTop + page.clientHeight < page.scrollHeight - 1,
++    })
++  }
++  useEffect(updateEdges, [turns.length, show])
 +
 +  // 官网少于两条不做导航
 +  if (turns.length < 2) return null
@@ -468,22 +612,29 @@ index 0000000..cffe142
 +      onMouseEnter={() => setShow(true)}
 +      onMouseLeave={() => setShow(false)}
 +    >
-+      <div className={styles.nav}>
-+        <div className={styles.page}>
-+          {turns.map((turn, index) => (
-+            <div
-+              key={turn.id}
-+              className={styles.item}
-+              data-active={index === active ? 'true' : undefined}
-+              title={turn.text}
-+              onClick={() => jump(turn.id)}
-+            >
-+              <div className={styles.itemTitle}>{turn.text.length > 0 ? turn.text : t('untitledChat')}</div>
-+              <div className={styles.itemIndicator}>
-+                <div className={styles.indicatorLine} />
++      <div className={styles.nav} data-top={edges.top ? 'true' : undefined} data-bottom={edges.bottom ? 'true' : undefined}>
++        <div className={styles.page} ref={pageRef} onScroll={updateEdges}>
++          {turns.map((turn, index) => {
++            const version = versions.get(turn.id)
++            const branches = version?.ids.length ?? 1
++            const branchAt = (version?.index ?? 0) + 1
++            return (
++              <div
++                key={turn.id}
++                className={styles.item}
++                data-turn-index={index}
++                data-active={index === active ? 'true' : undefined}
++                title={turn.text}
++                onClick={() => jump(turn.id)}
++              >
++                {branches > 1 ? <span className={styles.branchTag}>{branchAt}/{branches}</span> : null}
++                <div className={styles.itemTitle}>{turn.text.length > 0 ? turn.text : t('untitledChat')}</div>
++                <div className={styles.itemIndicator}>
++                  <div className={styles.indicatorLine} />
++                </div>
 +              </div>
-+            </div>
-+          ))}
++            )
++          })}
 +        </div>
 +      </div>
 +    </div>
@@ -502,6 +653,76 @@ index 9ab181b..d3d4ca0 100644
        {message.files.length > 0 ? (
          <div
            className={clsx(
+diff --git a/src/components/session/Welcome.module.css b/src/components/session/Welcome.module.css
+index c7f5d3d..dc0027d 100644
+--- a/src/components/session/Welcome.module.css
++++ b/src/components/session/Welcome.module.css
+@@ -16,6 +16,13 @@
+   padding: 0 32px 64px;
+ }
+ 
++.whale {
++  display: flex;
++  justify-content: center;
++  margin-bottom: 12px;
++  color: var(--dsw-alias-brand-text);
++}
++
+ .greeting {
+   display: flex;
+   align-items: center;
+@@ -29,7 +36,14 @@
+ }
+ 
+ @media (max-width: 439px) {
+-  .greeting {
++  .whale {
++  display: flex;
++  justify-content: center;
++  margin-bottom: 12px;
++  color: var(--dsw-alias-brand-text);
++}
++
++.greeting {
+     font-size: 20px;
+     line-height: 28px;
+     font-weight: 500;
+@@ -50,7 +64,14 @@
+     padding: 0 16px env(safe-area-inset-bottom);
+   }
+ 
+-  .greeting {
++  .whale {
++  display: flex;
++  justify-content: center;
++  margin-bottom: 12px;
++  color: var(--dsw-alias-brand-text);
++}
++
++.greeting {
+     flex-shrink: 0;
+     margin: auto 0;
+   }
+diff --git a/src/components/session/Welcome.tsx b/src/components/session/Welcome.tsx
+index 95f2729..eae2ca0 100644
+--- a/src/components/session/Welcome.tsx
++++ b/src/components/session/Welcome.tsx
+@@ -1,6 +1,7 @@
+ import { useIsMobile } from '../../app/viewport.js'
+ import { useTranslate } from '../../i18n/index.js'
+ import { ChatInput } from '../chatInput/ChatInput.js'
++import { WhaleGlyph } from '../sider/sessionSearchGlyphs.js'
+ import { MobileHeader } from './MobileHeader.js'
+ import styles from './Welcome.module.css'
+ 
+@@ -12,6 +13,7 @@ export const Welcome = () => {
+     <div className={styles.container}>
+       {isMobile ? <MobileHeader /> : null}
+       <div className={styles.welcome}>
++        <div className={styles.whale}><WhaleGlyph size={40} /></div>
+         <div className={styles.greeting}>{t('welcomeMessageChat250808')}</div>
+         <ChatInput sessionId={null} />
+         {isMobile ? <div className={styles.caveat}>{t('contentCaveat')}</div> : null}
 diff --git a/src/components/settings/SettingsDialog.tsx b/src/components/settings/SettingsDialog.tsx
 index a74b591..643453b 100644
 --- a/src/components/settings/SettingsDialog.tsx
@@ -522,6 +743,35 @@ index a74b591..643453b 100644
              </>
            )}
          </div>
+diff --git a/src/components/sider/CollapsedSider.tsx b/src/components/sider/CollapsedSider.tsx
+index e4bc1b5..892e2d4 100644
+--- a/src/components/sider/CollapsedSider.tsx
++++ b/src/components/sider/CollapsedSider.tsx
+@@ -1,8 +1,9 @@
+-import { IconPanelLeftOutline16, NewChatIcon } from '../base/icons.js'
++import { IconPanelLeftOutline16, IconSearchFilled16, NewChatIcon } from '../base/icons.js'
+ import { useTranslate } from '../../i18n/index.js'
+ import { setSiderCollapsed } from '../../services/settings.js'
+ import { newChat } from '../../services/chat/store.js'
+ import { IconButton } from '../base/IconButton.js'
++import { openSessionSearch } from './sessionSearchState.js'
+ import styles from './Sider.module.css'
+ 
+ /** 收起后左上角的按钮组 */
+@@ -18,6 +19,13 @@ export const CollapsedSider = () => {
+           tooltip={t('expandSiderbarButton')}
+           onClick={() => setSiderCollapsed(false)}
+         />
++        <IconButton
++          size="m"
++          tone="primary"
++          icon={<IconSearchFilled16 />}
++          tooltip={t('searchSessionsButton')}
++          onClick={openSessionSearch}
++        />
+         <IconButton
+           size="m"
+           tone="primary"
 diff --git a/src/components/sider/SessionItem.module.css b/src/components/sider/SessionItem.module.css
 index 6ccb2cf..38a1174 100644
 --- a/src/components/sider/SessionItem.module.css
@@ -817,17 +1067,17 @@ index 0000000..e144ecd
 +}
 diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
 new file mode 100644
-index 0000000..3aaa68c
+index 0000000..21bd50a
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.tsx
-@@ -0,0 +1,250 @@
+@@ -0,0 +1,269 @@
 +import { useEffect, useRef, useState } from 'react'
 +import type { KeyboardEvent } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
 +import { useSettings } from '../../services/settings.js'
 +import { IconCloseFilled16, IconSearchFilled16 } from '../base/icons.js'
 +import { loadSession } from '../../services/chat/db.js'
-+import { selectSession, useChatStore } from '../../services/chat/store.js'
++import { revealMessage, selectSession, useChatStore } from '../../services/chat/store.js'
 +import type { Message } from '../../services/chat/types.js'
 +import {
 +  closeSessionSearch,
@@ -838,8 +1088,9 @@ index 0000000..3aaa68c
 +import { UserGlyph, WhaleGlyph } from './sessionSearchGlyphs.js'
 +import styles from './SessionSearch.module.css'
 +
-+/** 一条命中：一条消息的片段，或标题命中时合成的摘要行。 */
++/** 一条命中：标题行或消息行。 */
 +type Hit = {
++  kind: 'title' | 'message'
 +  sessionId: string
 +  messageId: string
 +  title: string
@@ -850,40 +1101,46 @@ index 0000000..3aaa68c
 +
 +const MAX_HITS = 60
 +
-+/** 消息的可搜索文本：提问取正文，回答取文本块（不含思考）。 */
++/** 消息的可搜索文本：提问取正文，回答取思考与正文（官网也会命中思考过程）。 */
 +const messageText = (message: Message): string => message.role === 'user'
 +  ? message.content
 +  : message.blocks
-+    .flatMap(block => (block.type === 'text' ? [block.text] : []))
++    .flatMap((block) => {
++      if (block.type === 'text') return [block.text]
++      if (block.type === 'thinking') return [block.thinking]
++      return []
++    })
 +    .join('\n')
 +
-+/** 截取命中位置附近的片段，两端超出的部分用省略号。 */
++/** 截取首个命中附近的片段，两端超出的部分用省略号。 */
 +const makeSnippet = (text: string, index: number, length: number): string => {
 +  const start = Math.max(0, index - 30)
 +  const end = Math.min(text.length, index + length + 60)
 +  return `${start > 0 ? '…' : ''}${text.slice(start, end).replace(/\s+/g, ' ')}${end < text.length ? '…' : ''}`
 +}
 +
-+const pad = (value: number): string => `${value}`.padStart(2, '0')
-+
-+/** 把命中的关键词标成加粗（官网高亮只加重字重，不换颜色）。 */
++/** 所有命中位置都加粗，不再只标第一处。 */
 +const highlight = (text: string, needle: string, markClass: string) => {
 +  if (needle.length === 0) return text
-+  const index = text.toLowerCase().indexOf(needle)
-+  if (index < 0) return text
-+  return (
-+    <>
-+      {text.slice(0, index)}
-+      <mark className={markClass}>{text.slice(index, index + needle.length)}</mark>
-+      {text.slice(index + needle.length)}
-+    </>
-+  )
++  const nodes: React.ReactNode[] = []
++  let cursor = 0
++  let index = text.toLowerCase().indexOf(needle)
++  while (index >= 0) {
++    if (index > cursor) nodes.push(text.slice(cursor, index))
++    nodes.push(<mark key={index} className={markClass}>{text.slice(index, index + needle.length)}</mark>)
++    cursor = index + needle.length
++    index = text.toLowerCase().indexOf(needle, cursor)
++  }
++  if (cursor < text.length) nodes.push(text.slice(cursor))
++  return nodes.length > 0 ? nodes : text
 +}
++
++const pad = (value: number): string => `${value}`.padStart(2, '0')
 +
 +const sameDay = (a: Date, b: Date): boolean =>
 +  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 +
-+/** 日期格式对齐官网：今天 HH:mm，昨天显示「昨天」，当年 M月D日，跨年带年份。 */
++/** 日期格式对齐官网：今天 HH:mm，昨天「昨天」，当年 M月D日，跨年带年份。 */
 +const formatDate = (at: number, locale: string, t: (key: 'sessionHistoryTimelineLabelYesterday') => string): string => {
 +  const date = new Date(at)
 +  const now = new Date()
@@ -904,8 +1161,8 @@ index 0000000..3aaa68c
 +}
 +
 +/**
-+ * 会话搜索浮层：按标题与正文检索本地对话，结果按消息逐条列出。
-+ * 结构与尺寸对齐网页版：660px 宽、72vh 高、结果行最小 67px。
++ * 会话搜索浮层：按标题与正文检索本地对话。
++ * 标题命中单独成行，消息命中逐条列出；结构与尺寸对齐网页版。
 + */
 +export const SessionSearch = () => {
 +  const t = useTranslate()
@@ -917,6 +1174,7 @@ index 0000000..3aaa68c
 +  const [active, setActive] = useState(0)
 +  const [searching, setSearching] = useState(false)
 +  const inputRef = useRef<HTMLInputElement>(null)
++  const listRef = useRef<HTMLDivElement>(null)
 +  const needle = query.trim().toLowerCase()
 +
 +  useEffect(() => {
@@ -936,28 +1194,12 @@ index 0000000..3aaa68c
 +      void (async () => {
 +        const found: Hit[] = []
 +        for (const summary of sessions) {
-+          if (found.length >= MAX_HITS) break
 +          const titleHit = summary.title.toLowerCase().includes(needle)
 +          const session = await loadSession(summary.id).catch(() => undefined)
 +          if (session === undefined) continue
-+          let messageHit = false
-+          for (const message of session.messages) {
-+            const text = messageText(message)
-+            const index = text.toLowerCase().indexOf(needle)
-+            if (index < 0) continue
-+            messageHit = true
++          if (titleHit) {
 +            found.push({
-+              sessionId: summary.id,
-+              messageId: message.id,
-+              title: summary.title,
-+              snippet: makeSnippet(text, index, needle.length),
-+              at: message.createdAt,
-+              role: message.role,
-+            })
-+            if (found.length >= MAX_HITS) break
-+          }
-+          if (titleHit && !messageHit) {
-+            found.push({
++              kind: 'title',
 +              sessionId: summary.id,
 +              messageId: '',
 +              title: summary.title,
@@ -966,8 +1208,23 @@ index 0000000..3aaa68c
 +              role: 'assistant',
 +            })
 +          }
++          for (const message of session.messages) {
++            const text = messageText(message)
++            const index = text.toLowerCase().indexOf(needle)
++            if (index < 0) continue
++            found.push({
++              kind: 'message',
++              sessionId: summary.id,
++              messageId: message.id,
++              title: summary.title,
++              snippet: makeSnippet(text, index, needle.length),
++              at: message.createdAt,
++              role: message.role,
++            })
++          }
 +        }
 +        if (cancelled) return
++        // 先排序再截断，避免先截断漏掉较新的命中
 +        found.sort((a, b) => b.at - a.at)
 +        setHits(found.slice(0, MAX_HITS))
 +        setActive(0)
@@ -980,14 +1237,21 @@ index 0000000..3aaa68c
 +    }
 +  }, [open, needle, sessions])
 +
++  // 键盘移动选中项时把它滚进视野
++  useEffect(() => {
++    listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' })
++  }, [active, hits])
++
 +  if (!open) return null
 +
 +  const choose = (hit: Hit) => {
-+    if (hit.messageId.length > 0) {
-+      requestScrollToMessage(hit.sessionId, hit.messageId)
-+    }
 +    selectSession(hit.sessionId)
 +    closeSessionSearch()
++    if (hit.messageId.length === 0) return
++    // 命中可能落在旧分支：先把那一支选回当前路径，再让消息列表滚过去
++    void revealMessage(hit.sessionId, hit.messageId).then((revealed) => {
++      if (revealed) requestScrollToMessage(hit.sessionId, hit.messageId)
++    })
 +  }
 +
 +  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -996,6 +1260,7 @@ index 0000000..3aaa68c
 +      closeSessionSearch()
 +      return
 +    }
++    if (hits.length === 0) return
 +    if (event.key === 'ArrowDown') {
 +      event.preventDefault()
 +      setActive(index => (index + 1) % hits.length)
@@ -1006,7 +1271,7 @@ index 0000000..3aaa68c
 +      setActive(index => (index - 1 + hits.length) % hits.length)
 +      return
 +    }
-+    if (event.key === 'Enter' && hits.length > 0) {
++    if (event.key === 'Enter') {
 +      event.preventDefault()
 +      choose(hits[Math.min(active, hits.length - 1)])
 +    }
@@ -1038,18 +1303,20 @@ index 0000000..3aaa68c
 +            </button>
 +          </span>
 +        </div>
-+        <div className={styles.list} role="listbox" aria-label={t('searchSessionsButton')}>
++        <div className={styles.list} role="listbox" aria-label={t('searchSessionsButton')} ref={listRef}>
 +          {needle.length === 0 ? null : hits.length === 0 ? (
 +            <div className={styles.empty}>{searching ? t('searchSessionsSearching') : t('searchSessionsNoResult')}</div>
 +          ) : (
 +            hits.map((hit, index) => (
 +              <button
-+                key={`${hit.sessionId}-${hit.messageId}-${hit.at}-${index}`}
++                key={`${hit.kind}-${hit.sessionId}-${hit.messageId}-${hit.at}-${index}`}
 +                type="button"
 +                role="option"
 +                aria-selected={index === active}
-+                className={styles.item}
++                data-index={index}
++                data-kind={hit.kind}
 +                data-active={index === active ? 'true' : undefined}
++                className={styles.item}
 +                onMouseMove={() => setActive(previous => (previous === index ? previous : index))}
 +                onClick={() => choose(hit)}
 +              >
@@ -1061,7 +1328,9 @@ index 0000000..3aaa68c
 +                    <span className={styles.title}>{highlight(hit.title, needle, styles.mark)}</span>
 +                    <span className={styles.date}>{formatDate(hit.at, locale, t)}</span>
 +                  </span>
-+                  <span className={styles.snippet}>{highlight(hit.snippet, needle, styles.mark)}</span>
++                  {hit.kind === 'message' ? (
++                    <span className={styles.snippet}>{highlight(hit.snippet, needle, styles.mark)}</span>
++                  ) : null}
 +                </span>
 +              </button>
 +            ))
@@ -1144,7 +1413,7 @@ index 2f3cf56..ab000ab 100644
          type="button"
 diff --git a/src/components/sider/sessionSearchGlyphs.tsx b/src/components/sider/sessionSearchGlyphs.tsx
 new file mode 100644
-index 0000000..87c2c10
+index 0000000..61e0adf
 --- /dev/null
 +++ b/src/components/sider/sessionSearchGlyphs.tsx
 @@ -0,0 +1,18 @@
@@ -1159,8 +1428,8 @@ index 0000000..87c2c10
 +  </svg>
 +)
 +
-+export const WhaleGlyph = (): JSX.Element => (
-+  <svg viewBox="0 0 36 36" width="18" height="18" fill="currentColor" aria-hidden>
++export const WhaleGlyph = ({ size = 18 }: { size?: number } = {}): JSX.Element => (
++  <svg viewBox="0 0 36 36" width={size} height={size} fill="currentColor" aria-hidden>
 +    <g transform="translate(4 7.3) scale(1.0512) translate(-0.163 -1.75)">
 +      <path d="M26.5174 3.39471C26.235 3.2567 26.1137 3.52006 25.9487 3.65346C25.8923 3.69659 25.8446 3.75294 25.7969 3.80469C25.3846 4.24516 24.9027 4.53439 24.2737 4.49989C23.3536 4.44814 22.5682 4.73737 21.8735 5.44119C21.7258 4.57349 21.2353 4.0554 20.4889 3.72304C20.0985 3.55054 19.7034 3.37746 19.4297 3.00197C19.2388 2.73459 19.1865 2.43673 19.091 2.14289C19.0301 1.96579 18.9697 1.78466 18.7656 1.75418C18.5442 1.71968 18.4574 1.90541 18.3705 2.06067C18.0232 2.69549 17.8887 3.39471 17.9019 4.10313C17.9324 5.6965 18.6051 6.96556 19.9421 7.86834C20.0939 7.97184 20.133 8.07535 20.0852 8.22658C19.9938 8.53766 19.8857 8.83955 19.7903 9.15063C19.7293 9.34901 19.6384 9.39271 19.4257 9.30588C18.692 8.9994 18.0583 8.54571 17.4982 7.99772C16.5477 7.07827 15.6881 6.06336 14.6162 5.26869C14.3644 5.08296 14.1125 4.91045 13.8521 4.746C12.7584 3.68394 13.9952 2.81164 14.2816 2.70814C14.5812 2.60003 14.3857 2.22857 13.4179 2.23317C12.4502 2.2372 11.5646 2.56151 10.4359 2.99335C10.2708 3.05832 10.0972 3.10547 9.91951 3.14457C8.8954 2.95022 7.83162 2.90709 6.72069 3.03245C4.62877 3.26533 2.95777 4.25436 1.72954 5.94261C0.254043 7.97184 -0.0932678 10.2777 0.33167 12.6824C0.778458 15.2171 2.07225 17.3153 4.06008 18.9558C6.12152 20.6567 8.49577 21.4905 11.2047 21.3306C12.8498 21.2358 14.6812 21.0155 16.7473 19.2669C17.2682 19.5262 17.8151 19.6297 18.7219 19.7074C19.4205 19.7723 20.0933 19.6729 20.6143 19.5648C21.4302 19.3923 21.3739 18.6367 21.0789 18.4981C18.6874 17.3843 19.2124 17.8374 18.7351 17.4706C19.9501 16.033 21.8063 13.4776 22.379 9.99821C22.4353 9.61409 22.5072 9.073 22.4986 8.76192C22.494 8.57216 22.5377 8.49856 22.7545 8.47671C23.3536 8.40771 23.935 8.24383 24.4692 7.94999C26.0188 7.10357 26.6439 5.71318 26.7911 4.04678C26.8129 3.79204 26.7865 3.52869 26.5174 3.39471ZM13.0143 18.3946C10.6964 16.5724 9.5722 15.9726 9.10816 15.9985C8.67402 16.0244 8.75222 16.5212 8.84768 16.8449C8.94773 17.1646 9.07768 17.3849 9.25996 17.6655C9.38589 17.8512 9.47272 18.1272 9.13404 18.3348C8.38766 18.7965 7.08985 18.1796 7.0289 18.1491C5.51833 17.2595 4.25559 16.0853 3.36546 14.4793C2.50581 12.9337 2.0067 11.2753 1.92447 9.50542C1.90262 9.07818 2.02855 8.92695 2.45406 8.84932C3.01413 8.74582 3.59144 8.72397 4.15093 8.80619C6.51656 9.15178 8.53027 10.2092 10.2185 11.8848C11.1822 12.8388 11.9114 13.979 12.6623 15.0929C13.461 16.2757 14.3201 17.4027 15.4144 18.3268C15.8008 18.6505 16.109 18.8966 16.404 19.0783C15.5144 19.1778 14.0297 19.1991 13.0143 18.3958V18.3946ZM14.1252 11.2489C14.1252 11.0591 14.277 10.9079 14.4679 10.9079C14.511 10.9079 14.5501 10.9165 14.5852 10.9292C14.6329 10.9464 14.6766 10.9723 14.7111 11.0114C14.7721 11.0718 14.8066 11.158 14.8066 11.2489C14.8066 11.4386 14.6548 11.5899 14.4639 11.5899C14.273 11.5899 14.1252 11.4386 14.1252 11.2489ZM17.5759 13.0188C17.3545 13.1096 17.1331 13.1873 16.9203 13.1959C16.5903 13.2131 16.2303 13.0791 16.0348 12.9153C15.7312 12.6605 15.5139 12.5179 15.423 12.0734C15.3839 11.8837 15.4057 11.5899 15.4402 11.4214C15.5185 11.0585 15.4316 10.8257 15.1757 10.614C14.9676 10.4415 14.7025 10.3938 14.4115 10.3938C14.3029 10.3938 14.2034 10.3461 14.1292 10.3076C14.0079 10.2472 13.9078 10.096 14.0033 9.91023C14.0338 9.84985 14.1815 9.70322 14.216 9.67734C14.6111 9.45251 15.0665 9.52612 15.488 9.6946C15.8784 9.85445 16.174 10.1477 16.5989 10.5623C17.033 11.0631 17.1112 11.2011 17.3585 11.5772C17.554 11.871 17.7317 12.1729 17.8536 12.5185C17.9272 12.7341 17.8317 12.9107 17.5759 13.0188Z" />
 +    </g>
@@ -1235,7 +1504,7 @@ index 2d49027..878a914 100644
    copied: 'Copied',
    copyFailed: 'Copy failed. Please long-press or select the text to copy.',
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..c5a275e 100644
+index d99f058..f8990e5 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,10 @@ export const zh = {
@@ -1272,6 +1541,15 @@ index d99f058..c5a275e 100644
    copy: '复制',
    copied: '已复制',
    copyFailed: '复制失败，请长按或选中文本后复制',
+@@ -130,7 +137,7 @@ export const zh = {
+     '上传的文件包含暂未支持的文件格式，请转换文件格式后重试。支持 PDF、DOC、XLSX、PPT、图片、文本、代码等。',
+   uploadFileStatusFailed: '上传失败',
+   uploadRetry: '{message}，点击重试',
+-  chatInputPlaceholderChat: '请输入消息',
++  chatInputPlaceholderChat: '给 DeepSeek 发送消息',
+   deactivatedThinkTooltip: '先思考后回答，解决推理问题',
+   thinkingSwitch: '深度思考',
+   deactivatedSearchTooltip: '按需搜索网页',
 diff --git a/src/index.html b/src/index.html
 index 91df5f9..0a812a9 100644
 --- a/src/index.html
@@ -1317,6 +1595,64 @@ index a1f58ea..4452070 100644
  export const deleteSession = async (sessionId: string): Promise<void> => {
    const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
    await Promise.all([
+diff --git a/src/services/chat/history/schema.ts b/src/services/chat/history/schema.ts
+index db0bbf1..d7dc5a1 100644
+--- a/src/services/chat/history/schema.ts
++++ b/src/services/chat/history/schema.ts
+@@ -242,7 +242,8 @@ export const readSessionIndex: Read<SessionIndexEntry[]> = list((value) => {
+   return {
+     id: sessionId(item.id),
+     title: nullable(string)(item.title),
+-    pinned: false,
++    // 旧归档没有该字段，缺省视为未置顶
++    pinned: 'pinned' in item ? boolean(item.pinned) : false,
+     message_count: count(item.message_count),
+     inserted_at: time(item.inserted_at),
+     updated_at: time(item.updated_at),
+@@ -254,7 +255,8 @@ export const readSessionFile: Read<SessionFile> = (value) => {
+   return {
+     id: sessionId(item.id),
+     title: nullable(string)(item.title),
+-    pinned: false,
++    // 旧归档没有该字段，缺省视为未置顶
++    pinned: 'pinned' in item ? boolean(item.pinned) : false,
+     current_message_id: count(item.current_message_id),
+     inserted_at: time(item.inserted_at),
+     updated_at: time(item.updated_at),
+diff --git a/src/services/chat/history/toArchive.ts b/src/services/chat/history/toArchive.ts
+index 92aa38a..f50b172 100644
+--- a/src/services/chat/history/toArchive.ts
++++ b/src/services/chat/history/toArchive.ts
+@@ -259,7 +259,7 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
+   return {
+     id: session.id,
+     title: session.title || null,
+-    pinned: false,
++    pinned: session.pinned === true,
+     // 格式要求非空；空会话没有消息可指向，写 0。
+     current_message_id: current ? id(current) : 0,
+     inserted_at: iso(session.createdAt),
+@@ -271,7 +271,7 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
+ export const toIndexEntry = (file: SessionFile): SessionIndexEntry => ({
+   id: file.id,
+   title: file.title,
+-  pinned: false,
++  pinned: file.pinned,
+   message_count: file.messages.length,
+   inserted_at: file.inserted_at,
+   updated_at: file.updated_at,
+diff --git a/src/services/chat/history/toLocal.ts b/src/services/chat/history/toLocal.ts
+index ff7084d..e2fc060 100644
+--- a/src/services/chat/history/toLocal.ts
++++ b/src/services/chat/history/toLocal.ts
+@@ -286,6 +286,7 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
+     title: file.title ?? '',
+     createdAt: time(file.inserted_at),
+     updatedAt: time(file.updated_at),
++    ...(file.pinned ? { pinned: true } : {}),
+     ...buildTree(file),
+   }
+   const images = new Map<string, string>()
 diff --git a/src/services/chat/sessionGroups.ts b/src/services/chat/sessionGroups.ts
 index 8540bb1..6271eb2 100644
 --- a/src/services/chat/sessionGroups.ts
@@ -1335,7 +1671,7 @@ index 8540bb1..6271eb2 100644
      const key =
        diff <= 0
 diff --git a/src/services/chat/store.ts b/src/services/chat/store.ts
-index 32e74a5..c316ca7 100644
+index 32e74a5..a7955e7 100644
 --- a/src/services/chat/store.ts
 +++ b/src/services/chat/store.ts
 @@ -288,6 +288,28 @@ const settleInterrupted = (session: Session): Session => {
@@ -1375,10 +1711,49 @@ index 32e74a5..c316ca7 100644
        const summaries = await db.loadSessionSummaries()
        if (epoch === historyEpoch) {
          set({ ready: true, sessions: sortSessions(summaries) })
-@@ -477,6 +500,29 @@ export const renameSession = (id: string, title: string) => {
+@@ -477,6 +500,68 @@ export const renameSession = (id: string, title: string) => {
    }
  }
  
++/**
++ * 让某条消息出现在当前分支路径上：从目标逐级向上，把每层父节点的选中子节点指到这条链。
++ * 搜索结果可能命中旧版本的回答或更早的分支，点进去时要先把那一支选回来。
++ */
++export const revealMessage = async (sessionId: string, messageId: string): Promise<boolean> => {
++  await ensureSessionLoaded(sessionId)
++  const session = getSession(sessionId)
++  if (!session || getStreamController(sessionId)) {
++    return false
++  }
++  const byId = new Map(session.messages.map((message) => [message.id, message]))
++  const target = byId.get(messageId)
++  if (!target) {
++    return false
++  }
++  const selections = new Map<string, string>()
++  let current = target
++  while (current.parentId !== undefined && current.parentId !== null) {
++    selections.set(current.parentId, current.id)
++    const parent = byId.get(current.parentId)
++    if (!parent) {
++      break
++    }
++    current = parent
++  }
++  const changed = [...selections].some(([parentId, childId]) => byId.get(parentId)?.selectedChildId !== childId)
++  if (!changed) {
++    return true
++  }
++  updateSession(sessionId, (value) => ({
++    ...value,
++    messages: value.messages.map((message) => {
++      const childId = selections.get(message.id)
++      return childId === undefined ? message : { ...message, selectedChildId: childId }
++    }),
++  }))
++  persist(sessionId)
++  return true
++}
 +/** 切换置顶：列表先按置顶分组，组内仍按更新时间排序。 */
 +export const togglePinned = (id: string) => {
 +  if (get().importingHistory || deletingSessions.has(id)) {
