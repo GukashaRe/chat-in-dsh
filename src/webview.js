@@ -161,6 +161,42 @@ async function proxyFiles(ctx, config, req, res, pathname) {
   res.end(text)
 }
 
+/** 语音接口转发：ASR 收 multipart、TTS 回 PCM 流，浏览器不持有凭据。 */
+async function proxyTools(ctx, config, req, res, pathname) {
+  const baseURL = config.baseURL || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL
+  const token = await ctx.get('deepseekAccount')?.resolveToken(baseURL)
+  if (token === undefined) {
+    sendJson(res, { error: { message: '尚未登录 DeepSeek，或该端点不接受 DSH 账户凭据' } }, 401)
+    return
+  }
+  const root = baseURL.replace(/\/+$/u, '').replace(/\/anthropic$/u, '')
+  const target = `${root}${pathname.slice('/webchat'.length)}`
+  const controller = new AbortController()
+  res.on('close', () => {
+    if (!res.writableEnded) controller.abort()
+  })
+  const headers = {
+    'anthropic-version': '2023-06-01',
+    [TOKEN_HEADER]: token,
+    ...(req.headers.authorization === undefined ? {} : { authorization: req.headers.authorization }),
+  }
+  const contentType = req.headers['content-type']
+  if (typeof contentType === 'string') headers['content-type'] = contentType
+  if (typeof req.headers.accept === 'string') headers.accept = req.headers.accept
+  const init = { method: req.method, headers, signal: controller.signal }
+  if (req.method !== 'GET' && req.method !== 'HEAD') init.body = await readBody(req)
+  const upstream = await fetch(target, init)
+  res.writeHead(upstream.status, {
+    'content-type': upstream.headers.get('content-type') ?? 'application/octet-stream',
+    'cache-control': 'no-store',
+  })
+  if (upstream.body === null) {
+    res.end()
+    return
+  }
+  await pipeline(Readable.fromWeb(upstream.body), res)
+}
+
 /** 自检：入口页、静态资源、一次真实生成。 */
 async function selfTest(ctx, config) {
   const checks = []
@@ -269,6 +305,17 @@ export function createWebview(ctx, config, home) {
     if (pathname.startsWith('/webchat/anthropic/v1/files')) {
       try {
         await proxyFiles(ctx, config, req, res, pathname)
+      } catch (error) {
+        if (!res.headersSent) sendJson(res, { error: { message: String(error?.message ?? error) } }, 502)
+        else res.destroy()
+      }
+      return
+    }
+
+    // 语音输入 / 回答朗读：/webchat/v1/tools/asr、/webchat/v1/tools/tts
+    if (pathname.startsWith('/webchat/v1/tools/') && method === 'POST') {
+      try {
+        await proxyTools(ctx, config, req, res, pathname)
       } catch (error) {
         if (!res.headersSent) sendJson(res, { error: { message: String(error?.message ?? error) } }, 502)
         else res.destroy()

@@ -272,27 +272,62 @@ index 6b8c0e9..788a1b5 100644
      </ScrollToBottomContext.Provider>
    )
  }
+diff --git a/src/components/messages/ReplyArea.module.css b/src/components/messages/ReplyArea.module.css
+index f86d729..b9b592c 100644
+--- a/src/components/messages/ReplyArea.module.css
++++ b/src/components/messages/ReplyArea.module.css
+@@ -3,11 +3,17 @@
+ }
+ 
+ .title {
++  position: sticky;
++  top: 0;
++  z-index: 7;
+   display: flex;
+   align-items: center;
+   height: 34px;
+   margin-bottom: 2px;
+   color: var(--dsw-alias-label-secondary);
++  background-color: var(--dsw-alias-bg-base);
++  /* 盖住 margin-bottom 的 2px 缝隙，滚动时正文不会从标题下方透出 */
++  box-shadow: 0 2px 0 var(--dsw-alias-bg-base);
+   cursor: pointer;
+   user-select: none;
+   transition: color 0.2s;
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
-index 0000000..78156a3
+index 0000000..2103050
 --- /dev/null
 +++ b/src/components/messages/TurnRail.module.css
-@@ -0,0 +1,225 @@
-+/* 官方 scrollNav 的尺寸：行高 30px、短刻度 8×2、圆角 4px、容器最多 240px 宽。 */
+@@ -0,0 +1,201 @@
++/* 官网 scrollNav 几何：右侧 16px、34px 毛玻璃胶囊；悬停时内部容器展开、最宽 240px。 */
 +.rail {
++  position: fixed;
++  top: 50%;
++  right: 16px;
++  z-index: 5;
++  display: flex;
++  align-items: center;
++  justify-content: flex-end;
++  width: 34px;
++  transform: translateY(-50%);
++  user-select: none;
++  transition: all 0.2s;
++}
++
++.bg {
 +  position: absolute;
 +  top: 50%;
 +  right: 0;
-+  z-index: 12;
-+  display: flex;
-+  justify-content: flex-end;
-+  width: 32px;
++  z-index: -1;
++  width: 34px;
++  height: calc(100% - 8px);
++  max-height: calc(100% - 8px);
++  border-radius: 16px;
++  background-color: rgba(255, 255, 255, 0.8);
++  -webkit-backdrop-filter: blur(5px);
++  backdrop-filter: blur(5px);
 +  transform: translateY(-50%);
-+  transition: width 0.2s ease;
-+}
-+
-+.rail[data-show='true'] {
-+  width: 240px;
 +}
 +
 +.nav {
@@ -300,21 +335,29 @@ index 0000000..78156a3
 +  display: flex;
 +  flex-direction: column;
 +  align-items: stretch;
++  flex-shrink: 0;
 +  box-sizing: border-box;
-+  width: 100%;
-+  max-height: 250px;
++  width: fit-content;
++  max-width: 240px;
 +  overflow: hidden;
 +  border: 1px solid transparent;
 +  border-radius: 16px;
++  pointer-events: none;
 +  transition:
 +    background 0.2s,
 +    box-shadow 0.2s;
 +}
 +
 +.rail[data-show='true'] .nav {
++  pointer-events: auto;
 +  border-color: transparent;
 +  background: var(--dsw-alias-bg-layer-2);
 +  box-shadow: var(--dsw-shadow-lv3);
++}
++
++/* 条目多于 8 条时固定 240px 宽，避免整列过宽 */
++.nav[data-many='true'] {
++  width: 240px;
 +}
 +
 +.nav::before,
@@ -361,6 +404,7 @@ index 0000000..78156a3
 +  display: none;
 +}
 +
++/* 行高 30px；宽度留出 6px 的右边距，与官网一致 */
 +.item {
 +  display: flex;
 +  align-items: center;
@@ -375,26 +419,10 @@ index 0000000..78156a3
 +  cursor: pointer;
 +}
 +
-+.branchTag {
-+  flex-shrink: 0;
-+  margin-right: 6px;
-+  padding: 0 4px;
-+  border-radius: 4px;
-+  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
-+  color: var(--dsw-alias-label-tertiary);
-+  font: var(--dsw-font-xs-13);
-+  line-height: 18px;
-+  opacity: 0;
-+  transition: opacity 0.1s;
-+}
-+
-+.rail[data-show='true'] .branchTag {
-+  opacity: 1;
-+}
-+
++/* 标题保持固有宽度：短标题自然右对齐，长标题在 240px 内截断 */
 +.itemTitle {
-+  flex: 1;
 +  min-width: 0;
++  max-width: 100%;
 +  margin-right: 12px;
 +  overflow: hidden;
 +  font: var(--dsw-font-xs-13);
@@ -407,66 +435,15 @@ index 0000000..78156a3
 +    color 0.2s;
 +}
 +
-+.rail[data-show='true'] .branchTag {
-+  flex-shrink: 0;
-+  margin-right: 6px;
-+  padding: 0 4px;
-+  border-radius: 4px;
-+  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
-+  color: var(--dsw-alias-label-tertiary);
-+  font: var(--dsw-font-xs-13);
-+  line-height: 18px;
-+  opacity: 0;
-+  transition: opacity 0.1s;
-+}
-+
-+.rail[data-show='true'] .branchTag {
++.rail[data-show='true'] .itemTitle {
 +  opacity: 1;
 +}
 +
-+.itemTitle {
-+  opacity: 1;
-+}
-+
-+.item:hover .branchTag {
-+  flex-shrink: 0;
-+  margin-right: 6px;
-+  padding: 0 4px;
-+  border-radius: 4px;
-+  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
-+  color: var(--dsw-alias-label-tertiary);
-+  font: var(--dsw-font-xs-13);
-+  line-height: 18px;
-+  opacity: 0;
-+  transition: opacity 0.1s;
-+}
-+
-+.rail[data-show='true'] .branchTag {
-+  opacity: 1;
-+}
-+
-+.itemTitle {
++.item:hover .itemTitle {
 +  color: var(--dsw-alias-label-primary);
 +}
 +
-+.item[data-active='true'] .branchTag {
-+  flex-shrink: 0;
-+  margin-right: 6px;
-+  padding: 0 4px;
-+  border-radius: 4px;
-+  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
-+  color: var(--dsw-alias-label-tertiary);
-+  font: var(--dsw-font-xs-13);
-+  line-height: 18px;
-+  opacity: 0;
-+  transition: opacity 0.1s;
-+}
-+
-+.rail[data-show='true'] .branchTag {
-+  opacity: 1;
-+}
-+
-+.itemTitle {
++.item[data-active='true'] .itemTitle {
 +  color: var(--dsw-alias-brand-text);
 +  font-weight: 500;
 +}
@@ -498,6 +475,27 @@ index 0000000..78156a3
 +  transform: scale(1.5);
 +}
 +
++.branchTag {
++  flex-shrink: 0;
++  margin-right: 6px;
++  padding: 0 4px;
++  border-radius: 4px;
++  background: var(--dsw-alias-markdown-citation, rgba(0, 0, 0, 0.06));
++  color: var(--dsw-alias-label-tertiary);
++  font: var(--dsw-font-xs-13);
++  line-height: 18px;
++  opacity: 0;
++  transition: opacity 0.1s;
++}
++
++.rail[data-show='true'] .branchTag {
++  opacity: 1;
++}
++
++[data-ds-dark-theme] .bg {
++  background-color: rgba(21, 21, 23, 0.6);
++}
++
 +@media not all and (min-width: 768px) {
 +  .rail {
 +    display: none;
@@ -505,10 +503,10 @@ index 0000000..78156a3
 +}
 diff --git a/src/components/messages/TurnRail.tsx b/src/components/messages/TurnRail.tsx
 new file mode 100644
-index 0000000..4baab19
+index 0000000..4ba4a5c
 --- /dev/null
 +++ b/src/components/messages/TurnRail.tsx
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,137 @@
 +import type { RefObject } from 'react'
 +import { useEffect, useMemo, useRef, useState } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
@@ -521,7 +519,7 @@ index 0000000..4baab19
 +
 +/**
 + * 右侧轮次导航：每轮提问一条刻度，悬停展开标题，点击跳到对应轮次。
-+ * 结构、尺寸与交互对齐网页版：行高 30px，短刻度 8×2、当前项放大 1.5 倍。
++ * 几何对齐官网：右侧 16px、34px 宽的毛玻璃胶囊，悬停时内部 fit-content 容器展开（最宽 240）。
 + */
 +export const TurnRail = ({
 +  scrollRef,
@@ -567,7 +565,7 @@ index 0000000..4baab19
 +    }
 +  }, [scrollRef, turns])
 +
-+  // 当前轮在导航窗口外时，只滚动导航自身，不动正文
++  // 当前轮在导航窗口外时，只滚动导航自身
 +  useEffect(() => {
 +    const page = pageRef.current
 +    if (page === null) return
@@ -612,7 +610,13 @@ index 0000000..4baab19
 +      onMouseEnter={() => setShow(true)}
 +      onMouseLeave={() => setShow(false)}
 +    >
-+      <div className={styles.nav} data-top={edges.top ? 'true' : undefined} data-bottom={edges.bottom ? 'true' : undefined}>
++      <div className={styles.bg} />
++      <div
++        className={styles.nav}
++        data-many={turns.length > 8 ? 'true' : undefined}
++        data-top={edges.top ? 'true' : undefined}
++        data-bottom={edges.bottom ? 'true' : undefined}
++      >
 +        <div className={styles.page} ref={pageRef} onScroll={updateEdges}>
 +          {turns.map((turn, index) => {
 +            const version = versions.get(turn.id)
@@ -773,22 +777,148 @@ index e4bc1b5..892e2d4 100644
            size="m"
            tone="primary"
 diff --git a/src/components/sider/SessionItem.module.css b/src/components/sider/SessionItem.module.css
-index 6ccb2cf..38a1174 100644
+index 6ccb2cf..2430398 100644
 --- a/src/components/sider/SessionItem.module.css
 +++ b/src/components/sider/SessionItem.module.css
-@@ -39,6 +39,10 @@
+@@ -23,7 +23,34 @@
+ 
+     &:hover,
+     &.active {
+-      .action {
++      .selecting {
++  cursor: pointer;
++}
++
++.checkbox {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  box-sizing: border-box;
++  width: 18px;
++  height: 18px;
++  margin-right: 8px;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 6px;
++  background: transparent;
++  color: #fff;
++  transition:
++    background-color 0.15s,
++    border-color 0.15s;
++}
++
++.checkboxChecked {
++  border-color: var(--dsw-alias-brand-primary);
++  background: var(--dsw-alias-brand-primary);
++}
++
++.action {
+         display: flex;
+       }
+     }
+@@ -39,6 +66,64 @@
    line-height: 18px;
  }
  
-+.menuOpen .action {
++.menuOpen .selecting {
++  cursor: pointer;
++}
++
++.checkbox {
 +  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  box-sizing: border-box;
++  width: 18px;
++  height: 18px;
++  margin-right: 8px;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 6px;
++  background: transparent;
++  color: #fff;
++  transition:
++    background-color 0.15s,
++    border-color 0.15s;
++}
++
++.checkboxChecked {
++  border-color: var(--dsw-alias-brand-primary);
++  background: var(--dsw-alias-brand-primary);
++}
++
++.action {
++  display: flex;
++}
++
++.selecting {
++  cursor: pointer;
++}
++
++.checkbox {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  box-sizing: border-box;
++  width: 18px;
++  height: 18px;
++  margin-right: 8px;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 6px;
++  background: transparent;
++  color: #fff;
++  transition:
++    background-color 0.15s,
++    border-color 0.15s;
++}
++
++.checkboxChecked {
++  border-color: var(--dsw-alias-brand-primary);
++  background: var(--dsw-alias-brand-primary);
 +}
 +
  .action {
    display: none;
    flex-shrink: 0;
+@@ -60,7 +145,34 @@
+ }
+ 
+ @media (hover: none) {
+-  .action {
++  .selecting {
++  cursor: pointer;
++}
++
++.checkbox {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  box-sizing: border-box;
++  width: 18px;
++  height: 18px;
++  margin-right: 8px;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 6px;
++  background: transparent;
++  color: #fff;
++  transition:
++    background-color 0.15s,
++    border-color 0.15s;
++}
++
++.checkboxChecked {
++  border-color: var(--dsw-alias-brand-primary);
++  background: var(--dsw-alias-brand-primary);
++}
++
++.action {
+     display: flex;
+   }
+ }
 diff --git a/src/components/sider/SessionItem.tsx b/src/components/sider/SessionItem.tsx
-index c50dd62..ee3473b 100644
+index c50dd62..849c993 100644
 --- a/src/components/sider/SessionItem.tsx
 +++ b/src/components/sider/SessionItem.tsx
 @@ -1,8 +1,8 @@
@@ -797,12 +927,25 @@ index c50dd62..ee3473b 100644
  import { useTranslate } from '../../i18n/index.js'
 -import { IconEditOutline16, IconEllipsisOutline16, IconTrashOutline16 } from '../base/icons.js'
 -import { renameSession, selectSession } from '../../services/chat/store.js'
-+import { IconEditOutline16, IconEllipsisOutline16, IconPinOutline16, IconTrashOutline16, IconUnpinOutline16 } from '../base/icons.js'
++import { IconCheckedOutline14, IconEditOutline16, IconEllipsisOutline16, IconPinOutline16, IconTrashOutline16, IconUnpinOutline16 } from '../base/icons.js'
 +import { renameSession, selectSession, togglePinned } from '../../services/chat/store.js'
  import type { SessionSummary } from '../../services/chat/types.js'
  import { IconButton } from '../base/IconButton.js'
  import { Menu } from '../base/Menu.js'
-@@ -20,6 +20,7 @@ export const SessionItem = memo(function SessionItem({
+@@ -13,13 +13,20 @@ export const SessionItem = memo(function SessionItem({
+   session,
+   active,
+   onDelete,
++  selecting = false,
++  selected = false,
++  onToggleSelect,
+ }: {
+   session: SessionSummary
+   active: boolean
+   onDelete: () => void
++  selecting?: boolean
++  selected?: boolean
++  onToggleSelect?: () => void
  }) {
    const t = useTranslate()
    const [editing, setEditing] = useState(false)
@@ -810,24 +953,35 @@ index c50dd62..ee3473b 100644
    const displayTitle = session.title || t('untitledChat')
  
    if (editing) {
-@@ -49,7 +50,7 @@ export const SessionItem = memo(function SessionItem({
+@@ -49,15 +56,26 @@ export const SessionItem = memo(function SessionItem({
  
    return (
      <div
 -      className={clsx(styles.item, active && styles.active)}
-+      className={clsx(styles.item, active && styles.active, menuOpen && styles.menuOpen)}
++      className={clsx(styles.item, active && styles.active, menuOpen && styles.menuOpen, selecting && styles.selecting)}
        onClick={() => {
++        if (selecting) {
++          onToggleSelect?.()
++          return
++        }
          selectSession(session.id)
          closeMobileSider()
-@@ -58,6 +59,7 @@ export const SessionItem = memo(function SessionItem({
+       }}
+     >
++      {selecting ? (
++        <span className={clsx(styles.checkbox, selected && styles.checkboxChecked)} aria-hidden>
++          {selected ? <IconCheckedOutline14 /> : null}
++        </span>
++      ) : null}
        <div className={styles.title}>{displayTitle}</div>
++      {selecting ? null : (
        <div className={styles.action} onClick={(event) => event.stopPropagation()}>
          <Menu
 +          onOpenChange={setMenuOpen}
            options={[
              {
                key: 'rename',
-@@ -65,6 +67,12 @@ export const SessionItem = memo(function SessionItem({
+@@ -65,6 +83,12 @@ export const SessionItem = memo(function SessionItem({
                icon: <IconEditOutline16 />,
                onSelect: () => setEditing(true),
              },
@@ -840,6 +994,14 @@ index c50dd62..ee3473b 100644
              {
                key: 'delete',
                label: t('delete'),
+@@ -79,6 +103,7 @@ export const SessionItem = memo(function SessionItem({
+           )}
+         </Menu>
+       </div>
++      )}
+     </div>
+   )
+ })
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
 index 0000000..5a05ac2
@@ -1358,7 +1520,7 @@ index 0000000..26d805f
 +  )
 +}
 diff --git a/src/components/sider/Sider.module.css b/src/components/sider/Sider.module.css
-index 053be7e..0c2a4ce 100644
+index 053be7e..bab4a0c 100644
 --- a/src/components/sider/Sider.module.css
 +++ b/src/components/sider/Sider.module.css
 @@ -22,6 +22,13 @@
@@ -1375,11 +1537,137 @@ index 053be7e..0c2a4ce 100644
  .appName {
    min-width: 0;
    padding-left: 4px;
+@@ -79,6 +86,61 @@
+   margin-right: 6px;
+ }
+ 
++.listHeader {
++  display: flex;
++  align-items: center;
++  flex-shrink: 0;
++  gap: 6px;
++  min-height: 26px;
++  padding: 0 4px 4px;
++}
++
++.selectEntry {
++  margin-left: auto;
++  padding: 2px 8px;
++  border: none;
++  border-radius: 6px;
++  background: transparent;
++  color: var(--dsw-alias-label-tertiary);
++  font: inherit;
++  font-size: 12px;
++  cursor: pointer;
++}
++
++.selectEntry:hover {
++  background: var(--dsw-alias-interactive-bg-hover);
++  color: var(--dsw-alias-label-primary);
++}
++
++.batchCount {
++  margin-right: auto;
++  font-size: 12px;
++  color: var(--dsw-alias-label-tertiary);
++}
++
++.batchAction,
++.batchExit {
++  padding: 2px 8px;
++  border: none;
++  border-radius: 6px;
++  background: transparent;
++  color: var(--dsw-alias-label-primary);
++  font: inherit;
++  font-size: 12px;
++  cursor: pointer;
++}
++
++.batchAction:hover,
++.batchExit:hover {
++  background: var(--dsw-alias-interactive-bg-hover);
++}
++
++.batchAction:disabled {
++  color: var(--dsw-alias-label-quaternary, rgba(0, 0, 0, 0.2));
++  cursor: default;
++  background: transparent;
++}
++
+ .listWrap {
+   position: relative;
+   flex: 1;
+@@ -210,7 +272,62 @@
+   width: 300px;
+   max-width: calc(100vw - 48px);
+ 
+-  .listWrap {
++  .listHeader {
++  display: flex;
++  align-items: center;
++  flex-shrink: 0;
++  gap: 6px;
++  min-height: 26px;
++  padding: 0 4px 4px;
++}
++
++.selectEntry {
++  margin-left: auto;
++  padding: 2px 8px;
++  border: none;
++  border-radius: 6px;
++  background: transparent;
++  color: var(--dsw-alias-label-tertiary);
++  font: inherit;
++  font-size: 12px;
++  cursor: pointer;
++}
++
++.selectEntry:hover {
++  background: var(--dsw-alias-interactive-bg-hover);
++  color: var(--dsw-alias-label-primary);
++}
++
++.batchCount {
++  margin-right: auto;
++  font-size: 12px;
++  color: var(--dsw-alias-label-tertiary);
++}
++
++.batchAction,
++.batchExit {
++  padding: 2px 8px;
++  border: none;
++  border-radius: 6px;
++  background: transparent;
++  color: var(--dsw-alias-label-primary);
++  font: inherit;
++  font-size: 12px;
++  cursor: pointer;
++}
++
++.batchAction:hover,
++.batchExit:hover {
++  background: var(--dsw-alias-interactive-bg-hover);
++}
++
++.batchAction:disabled {
++  color: var(--dsw-alias-label-quaternary, rgba(0, 0, 0, 0.2));
++  cursor: default;
++  background: transparent;
++}
++
++.listWrap {
+     margin-top: 16px;
+   }
+ 
 diff --git a/src/components/sider/Sider.tsx b/src/components/sider/Sider.tsx
-index 2f3cf56..ab000ab 100644
+index 2f3cf56..c78a0d2 100644
 --- a/src/components/sider/Sider.tsx
 +++ b/src/components/sider/Sider.tsx
-@@ -1,7 +1,7 @@
+@@ -1,10 +1,10 @@
  import clsx from 'clsx'
  import { useEffect, useMemo, useState } from 'react'
  import { useTranslate } from '../../i18n/index.js'
@@ -1387,7 +1675,11 @@ index 2f3cf56..ab000ab 100644
 +import { IconPanelLeftOutline16, IconSearchFilled16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
  import { setSiderCollapsed } from '../../services/settings.js'
  import { groupSessions } from '../../services/chat/sessionGroups.js'
- import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
+-import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
++import { newChat, removeSession, setPinnedMany, useChatStore } from '../../services/chat/store.js'
+ import type { SessionSummary } from '../../services/chat/types.js'
+ import { Button } from '../base/Button.js'
+ import { IconButton } from '../base/IconButton.js'
 @@ -12,6 +12,7 @@ import { Modal } from '../base/Modal.js'
  import { showToast } from '../base/toastState.js'
  import { openSettings } from '../settings/settingsDialogState.js'
@@ -1396,7 +1688,63 @@ index 2f3cf56..ab000ab 100644
  import { SessionItem } from './SessionItem.js'
  import styles from './Sider.module.css'
  
-@@ -52,14 +53,23 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -24,6 +25,10 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+   const groups = useMemo(() => groupSessions(sessions, now, t), [sessions, now, t])
+   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
+   const [deletePending, setDeletePending] = useState(false)
++  const [selecting, setSelecting] = useState(false)
++  const [selected, setSelected] = useState<Set<string>>(() => new Set())
++  const [batchPending, setBatchPending] = useState(false)
++  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
+ 
+   useEffect(() => {
+     let timer: ReturnType<typeof setTimeout>
+@@ -49,17 +54,68 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+     }
+   }, [])
+ 
++  const exitSelect = () => {
++    setSelecting(false)
++    setSelected(new Set())
++  }
++  const toggleSelect = (id: string) => {
++    setSelected((previous) => {
++      const next = new Set(previous)
++      if (next.has(id)) next.delete(id)
++      else next.add(id)
++      return next
++    })
++  }
++  const selectedIds = [...selected]
++  const selectedSessions = sessions.filter((session) => selected.has(session.id))
++  const allPinned = selectedSessions.length > 0 && selectedSessions.every((session) => session.pinned === true)
++  const runPin = async () => {
++    if (selectedIds.length === 0 || batchPending) return
++    setBatchPending(true)
++    try {
++      await setPinnedMany(selectedIds, !allPinned)
++      exitSelect()
++    } finally {
++      setBatchPending(false)
++    }
++  }
++  const runDelete = async () => {
++    if (selectedIds.length === 0 || batchPending) return
++    setBatchPending(true)
++    try {
++      const results = await Promise.allSettled(selectedIds.map((id) => removeSession(id)))
++      const failed = selectedIds.filter((id, index) => results[index].status === 'rejected' || results[index].value === false)
++      if (failed.length > 0) {
++        setSelected(new Set(failed))
++        showToast({ key: 'sessionBatchFailed', type: 'error' })
++      } else {
++        exitSelect()
++      }
++    } finally {
++      setBatchPending(false)
++    }
++  }
++
    return (
      <div className={clsx(styles.sider, mobile && styles.mobile)}>
        <div className={styles.top}>
@@ -1428,6 +1776,75 @@ index 2f3cf56..ab000ab 100644
        </div>
        <button
          type="button"
+@@ -74,6 +130,24 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+         </span>
+         {t('newChat')}
+       </button>
++      <div className={styles.listHeader}>
++        {selecting ? (
++          <>
++            <span className={styles.batchCount}>{t('sessionBatchSelected', { count: selected.size })}</span>
++            <button type="button" className={styles.batchAction} disabled={batchPending || selected.size === 0} onClick={() => void runPin()}>
++              {allPinned ? t('sessionBatchUnpin') : t('sessionBatchPin')}
++            </button>
++            <button type="button" className={styles.batchAction} disabled={batchPending || selected.size === 0} onClick={() => setBatchDeleteOpen(true)}>
++              {t('delete')}
++            </button>
++            <button type="button" className={styles.batchExit} onClick={exitSelect}>{t('cancel')}</button>
++          </>
++        ) : (
++          <button type="button" className={styles.selectEntry} onClick={() => setSelecting(true)}>
++            {t('sessionBatchSelectEnter')}
++          </button>
++        )}
++      </div>
+       <div className={styles.listWrap}>
+         <div className={styles.list}>
+           {groups.map((group) => (
+@@ -85,6 +159,9 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+                   session={session}
+                   active={session.id === activeId}
+                   onDelete={() => setDeleting(session)}
++                  selecting={selecting}
++                  selected={selected.has(session.id)}
++                  onToggleSelect={() => toggleSelect(session.id)}
+                 />
+               ))}
+             </div>
+@@ -99,6 +176,33 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+           <span className={styles.settingsLabel}>{t('settings')}</span>
+         </button>
+       </div>
++      {batchDeleteOpen ? (
++        <Modal
++          title={t('sessionBatchDeleteTitle')}
++          onClose={() => {
++            if (!batchPending) setBatchDeleteOpen(false)
++          }}
++          footer={
++            <>
++              <Button variant="outlined" disabled={batchPending} onClick={() => setBatchDeleteOpen(false)}>
++                {t('cancel')}
++              </Button>
++              <Button
++                variant="danger"
++                disabled={batchPending}
++                onClick={() => {
++                  setBatchDeleteOpen(false)
++                  void runDelete()
++                }}
++              >
++                {t('delete')}
++              </Button>
++            </>
++          }
++        >
++          {t('sessionBatchDeleteConfirm', { count: selected.size })}
++        </Modal>
++      ) : null}
+       {deleting ? (
+         <Modal
+           title={t('deleteSessionModalContentTitle')}
 diff --git a/src/components/sider/sessionSearchGlyphs.tsx b/src/components/sider/sessionSearchGlyphs.tsx
 new file mode 100644
 index 0000000..61e0adf
@@ -1482,7 +1899,7 @@ index 0000000..77baab0
 +
 +export const consumeScrollTarget = () => useSessionSearch.setState({ pending: null })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..878a914 100644
+index 2d49027..4009227 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,10 @@ export const en = {
@@ -1496,7 +1913,7 @@ index 2d49027..878a914 100644
    newChat: 'New chat',
    untitledChat: 'New chat',
    sessionLoading: 'Loading chats...',
-@@ -14,12 +18,14 @@ export const en = {
+@@ -14,19 +18,29 @@ export const en = {
      'Chats or attachments have not been saved locally. Retry before closing this page.',
    sessionDeleteFailed: 'Unable to delete this chat. Please try again.',
    settings: 'Settings',
@@ -1510,9 +1927,16 @@ index 2d49027..878a914 100644
 +  sessionItemMenuPinOption: 'Pin to top',
 +  sessionItemMenuUnpinOption: 'Unpin',
    sessionItemMenuRenameOption: 'Rename',
++  sessionBatchSelectEnter: 'Select chats',
++  sessionBatchSelected: '{count} selected',
++  sessionBatchPin: 'Pin',
++  sessionBatchUnpin: 'Unpin',
++  sessionBatchDeleteTitle: 'Delete chats',
++  sessionBatchDeleteConfirm: 'Delete {count} selected chats? This cannot be undone.',
++  sessionBatchFailed: 'Some chats could not be processed. Please retry.',
    more: 'More',
    close: 'Close',
-@@ -27,6 +33,7 @@ export const en = {
+   sessionHistoryTimelineLabelToday: 'Today',
    sessionHistoryTimelineLabelYesterday: 'Yesterday',
    sessionHistoryTimelineLabel7days: '7 Days',
    sessionHistoryTimelineLabel30days: '30 Days',
@@ -1521,7 +1945,7 @@ index 2d49027..878a914 100644
    copied: 'Copied',
    copyFailed: 'Copy failed. Please long-press or select the text to copy.',
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..f8990e5 100644
+index d99f058..889a116 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,10 @@ export const zh = {
@@ -1535,7 +1959,7 @@ index d99f058..f8990e5 100644
    newChat: '开启新对话',
    untitledChat: '新对话',
    sessionLoading: '正在加载对话...',
-@@ -11,11 +15,13 @@ export const zh = {
+@@ -11,18 +15,28 @@ export const zh = {
    sessionSaveFailed: '对话或附件尚未保存到本机，关闭页面可能丢失，请重试',
    sessionDeleteFailed: '删除对话失败，请重试',
    settings: '设置',
@@ -1548,9 +1972,16 @@ index d99f058..f8990e5 100644
 +  sessionItemMenuPinOption: '置顶',
 +  sessionItemMenuUnpinOption: '取消置顶',
    sessionItemMenuRenameOption: '重命名',
++  sessionBatchSelectEnter: '选择对话',
++  sessionBatchSelected: '已选 {count} 项',
++  sessionBatchPin: '置顶',
++  sessionBatchUnpin: '取消置顶',
++  sessionBatchDeleteTitle: '删除对话',
++  sessionBatchDeleteConfirm: '确认删除选中的 {count} 个对话？删除后无法恢复。',
++  sessionBatchFailed: '部分对话处理失败，请重试',
    more: '更多',
    close: '关闭',
-@@ -23,6 +29,7 @@ export const zh = {
+   sessionHistoryTimelineLabelToday: '今天',
    sessionHistoryTimelineLabelYesterday: '昨天',
    sessionHistoryTimelineLabel7days: '7 天内',
    sessionHistoryTimelineLabel30days: '30 天内',
@@ -1558,7 +1989,7 @@ index d99f058..f8990e5 100644
    copy: '复制',
    copied: '已复制',
    copyFailed: '复制失败，请长按或选中文本后复制',
-@@ -130,7 +137,7 @@ export const zh = {
+@@ -130,7 +144,7 @@ export const zh = {
      '上传的文件包含暂未支持的文件格式，请转换文件格式后重试。支持 PDF、DOC、XLSX、PPT、图片、文本、代码等。',
    uploadFileStatusFailed: '上传失败',
    uploadRetry: '{message}，点击重试',
@@ -1688,7 +2119,7 @@ index 8540bb1..6271eb2 100644
      const key =
        diff <= 0
 diff --git a/src/services/chat/store.ts b/src/services/chat/store.ts
-index 32e74a5..a7955e7 100644
+index 32e74a5..f42022c 100644
 --- a/src/services/chat/store.ts
 +++ b/src/services/chat/store.ts
 @@ -288,6 +288,28 @@ const settleInterrupted = (session: Session): Session => {
@@ -1728,7 +2159,7 @@ index 32e74a5..a7955e7 100644
        const summaries = await db.loadSessionSummaries()
        if (epoch === historyEpoch) {
          set({ ready: true, sessions: sortSessions(summaries) })
-@@ -477,6 +500,68 @@ export const renameSession = (id: string, title: string) => {
+@@ -477,6 +500,92 @@ export const renameSession = (id: string, title: string) => {
    }
  }
  
@@ -1770,6 +2201,30 @@ index 32e74a5..a7955e7 100644
 +  }))
 +  persist(sessionId)
 +  return true
++}
++/** 批量置顶/取消置顶：已加载的会话走缓存与持久化，未加载的直接写库。 */
++export const setPinnedMany = async (ids: string[], pinned: boolean): Promise<void> => {
++  if (get().importingHistory) {
++    return
++  }
++  const targets = new Set(ids)
++  if (targets.size === 0) {
++    return
++  }
++  set((state) => ({
++    sessions: state.sessions.map((session) =>
++      targets.has(session.id) ? { ...session, pinned } : session
++    ),
++  }))
++  await Promise.all([...targets].map(async (id) => {
++    const session = getSession(id)
++    if (session) {
++      updateSession(id, (value) => ({ ...value, pinned }))
++      persist(id)
++      return
++    }
++    await db.setPinned(id, pinned).catch(db.reportStorageError('pin sessions'))
++  }))
 +}
 +/** 切换置顶：列表先按置顶分组，组内仍按更新时间排序。 */
 +export const togglePinned = (id: string) => {

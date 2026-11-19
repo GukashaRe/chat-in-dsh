@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
       key,
       src,
       title,
-      allow: 'clipboard-write',
+      allow: 'clipboard-write; microphone',
       style: { width: '100%', height: '100%', border: 'none', display: 'block', background: '#fff' },
     })
 
