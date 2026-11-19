@@ -482,10 +482,10 @@ index f86d729..b9b592c 100644
    transition: color 0.2s;
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
-index 0000000..b1db403
+index 0000000..fc3be43
 --- /dev/null
 +++ b/src/components/messages/TurnRail.module.css
-@@ -0,0 +1,205 @@
+@@ -0,0 +1,206 @@
 +/* 官网 scrollNav 几何：右侧 16px、34px 毛玻璃胶囊；悬停时内部容器展开、最宽 240px。 */
 +.rail {
 +  position: fixed;
@@ -522,7 +522,8 @@ index 0000000..b1db403
 +  flex-direction: column;
 +  align-items: stretch;
 +  flex-shrink: 0;
-+  box-sizing: border-box;
++  /* 官网卡片是 content-box：240 是内容宽，外框再加左右各 1px 边框 */
++  box-sizing: content-box;
 +  width: fit-content;
 +  max-width: 240px;
 +  overflow: hidden;
