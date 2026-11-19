@@ -31,6 +31,307 @@ index d204c0f..db67a72 100644
        </div>
        <SettingsDialog />
        <Toast />
+diff --git a/src/components/messages/MessageList.module.css b/src/components/messages/MessageList.module.css
+index 31f7b73..dfe1ad1 100644
+--- a/src/components/messages/MessageList.module.css
++++ b/src/components/messages/MessageList.module.css
+@@ -1,3 +1,11 @@
++.wrapper {
++  position: relative;
++  display: flex;
++  flex: 1;
++  flex-direction: column;
++  min-height: 0;
++}
++
+ .container {
+   flex: 1;
+   min-height: 0;
+@@ -13,7 +21,15 @@
+ }
+ 
+ @media not all and (min-width: 768px) {
+-  .container {
++  .wrapper {
++  position: relative;
++  display: flex;
++  flex: 1;
++  flex-direction: column;
++  min-height: 0;
++}
++
++.container {
+     overflow: hidden;
+     scrollbar-gutter: auto;
+   }
+diff --git a/src/components/messages/MessageList.tsx b/src/components/messages/MessageList.tsx
+index 6b8c0e9..f960c4d 100644
+--- a/src/components/messages/MessageList.tsx
++++ b/src/components/messages/MessageList.tsx
+@@ -10,6 +10,7 @@ import type { Session } from '../../services/chat/types.js'
+ import { closeSearchPanel } from '../search/searchPanelState.js'
+ import { AssistantMessage } from './AssistantMessage.js'
+ import { ScrollToBottomContext } from './scrollContext.js'
++import { TurnRail } from './TurnRail.js'
+ import { UserMessage } from './UserMessage.js'
+ import type { Message } from '../../services/chat/types.js'
+ 
+@@ -143,6 +144,7 @@ export const MessageList = ({
+   const uploadRetryId = getUploadRetryId(messages, streaming)
+   return (
+     <ScrollToBottomContext.Provider value={scrollToBottom}>
++      <div className={styles.wrapper}>
+       <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
+         <div ref={isMobile ? scrollRef : undefined} className={styles.scroll}>
+           <div ref={contentRef} className={styles.column}>
+@@ -176,6 +178,8 @@ export const MessageList = ({
+         </div>
+         {footer}
+       </div>
++      {!isMobile && <TurnRail scrollRef={scrollRef} messages={messages} />}
++      </div>
+     </ScrollToBottomContext.Provider>
+   )
+ }
+diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
+new file mode 100644
+index 0000000..39e7855
+--- /dev/null
++++ b/src/components/messages/TurnRail.module.css
+@@ -0,0 +1,109 @@
++.rail {
++  position: absolute;
++  top: 50%;
++  right: 8px;
++  z-index: 12;
++  display: flex;
++  align-items: center;
++  transform: translateY(-50%);
++}
++
++.ticks {
++  display: flex;
++  flex-direction: column;
++  align-items: flex-end;
++  gap: 6px;
++  padding: 6px 4px;
++}
++
++.tick {
++  display: block;
++  width: 12px;
++  height: 2px;
++  padding: 0;
++  border: none;
++  border-radius: 2px;
++  background: var(--dsw-alias-label-quaternary, rgba(0, 0, 0, 0.16));
++  cursor: pointer;
++  transition:
++    width 0.15s ease,
++    background-color 0.15s ease;
++}
++
++.tick:hover {
++  width: 16px;
++  background: var(--dsw-alias-label-tertiary);
++}
++
++.tick[data-active='true'] {
++  width: 18px;
++  background: var(--dsw-alias-brand-primary);
++}
++
++.popover {
++  position: absolute;
++  top: 50%;
++  right: 22px;
++  display: flex;
++  flex-direction: column;
++  box-sizing: border-box;
++  width: 260px;
++  max-height: 54vh;
++  padding: 6px;
++  overflow-y: auto;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 14px;
++  background: var(--dsw-alias-bg-base);
++  box-shadow: 0 8px 28px rgba(17, 24, 39, 0.18);
++  transform: translateY(-50%);
++  scrollbar-color: var(--scroll-color) transparent;
++}
++
++.row {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  box-sizing: border-box;
++  width: 100%;
++  padding: 8px 10px;
++  border: none;
++  border-radius: 8px;
++  background: transparent;
++  color: var(--dsw-alias-label-secondary);
++  font: inherit;
++  font-size: 13px;
++  line-height: 20px;
++  text-align: left;
++  cursor: pointer;
++}
++
++.row[data-active='true'] {
++  color: var(--dsw-alias-label-primary);
++}
++
++.rowText {
++  flex: 1;
++  min-width: 0;
++  overflow: hidden;
++  white-space: nowrap;
++  text-overflow: ellipsis;
++}
++
++.rowMark {
++  flex-shrink: 0;
++  width: 10px;
++  height: 2px;
++  border-radius: 2px;
++  background: var(--dsw-alias-label-quaternary, rgba(0, 0, 0, 0.16));
++}
++
++.row[data-active='true'] .rowMark {
++  width: 14px;
++  background: var(--dsw-alias-brand-primary);
++}
++
++@media not all and (min-width: 768px) {
++  .rail {
++    display: none;
++  }
++}
+diff --git a/src/components/messages/TurnRail.tsx b/src/components/messages/TurnRail.tsx
+new file mode 100644
+index 0000000..1a8215b
+--- /dev/null
++++ b/src/components/messages/TurnRail.tsx
+@@ -0,0 +1,105 @@
++import type { RefObject } from 'react'
++import { useEffect, useMemo, useRef, useState } from 'react'
++import { useTranslate } from '../../i18n/index.js'
++import type { Message } from '../../services/chat/types.js'
++import styles from './TurnRail.module.css'
++
++/** 一轮提问：用于刻度的锚点与预览文本。 */
++type Turn = { id: string; text: string }
++
++/**
++ * 右侧轮次轨道：每条用户提问一根刻度，悬停展开预览，点击跳到对应轮次。
++ * 交互与网页版一致：刻度随滚动高亮当前轮次。
++ */
++export const TurnRail = ({
++  scrollRef,
++  messages,
++}: {
++  scrollRef: RefObject<HTMLDivElement | null>
++  messages: Message[]
++}) => {
++  const t = useTranslate()
++  const turns = useMemo<Turn[]>(() => messages
++    .filter(message => message.role === 'user')
++    .map(message => ({ id: message.id, text: message.content.replace(/\s+/g, ' ').trim() })), [messages])
++  const [active, setActive] = useState(0)
++  const [open, setOpen] = useState(false)
++  const [hovered, setHovered] = useState<number | null>(null)
++  const listRef = useRef<HTMLDivElement>(null)
++
++  useEffect(() => {
++    const scroll = scrollRef.current
++    if (scroll === null || turns.length === 0) return
++    const update = () => {
++      const top = scroll.getBoundingClientRect().top + 40
++      let index = 0
++      turns.forEach((turn, position) => {
++        const node = scroll.querySelector(`[data-message-id="${CSS.escape(turn.id)}"]`)
++        if (node !== null && node.getBoundingClientRect().top <= top) index = position
++      })
++      setActive(index)
++    }
++    update()
++    scroll.addEventListener('scroll', update, { passive: true })
++    window.addEventListener('resize', update)
++    return () => {
++      scroll.removeEventListener('scroll', update)
++      window.removeEventListener('resize', update)
++    }
++  }, [scrollRef, turns])
++
++  if (turns.length === 0) return null
++
++  const jump = (id: string) => {
++    const scroll = scrollRef.current
++    const node = scroll?.querySelector(`[data-message-id="${CSS.escape(id)}"]`)
++    if (scroll === null || node == null) return
++    scroll.scrollTo({
++      top: scroll.scrollTop + node.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16,
++      behavior: 'smooth',
++    })
++    setOpen(false)
++  }
++
++  return (
++    <div
++      className={styles.rail}
++      onMouseEnter={() => setOpen(true)}
++      onMouseLeave={() => {
++        setOpen(false)
++        setHovered(null)
++      }}
++    >
++      <div className={styles.ticks}>
++        {turns.map((turn, index) => (
++          <button
++            key={turn.id}
++            type="button"
++            className={styles.tick}
++            data-active={index === active ? 'true' : undefined}
++            aria-label={t('untitledChat')}
++            onMouseEnter={() => setHovered(index)}
++            onClick={() => jump(turn.id)}
++          />
++        ))}
++      </div>
++      {open ? (
++        <div className={styles.popover} ref={listRef}>
++          {turns.map((turn, index) => (
++            <button
++              key={turn.id}
++              type="button"
++              className={styles.row}
++              data-active={(hovered ?? active) === index ? 'true' : undefined}
++              onMouseEnter={() => setHovered(index)}
++              onClick={() => jump(turn.id)}
++            >
++              <span className={styles.rowText}>{turn.text.length > 0 ? turn.text : t('untitledChat')}</span>
++              <span className={styles.rowMark} />
++            </button>
++          ))}
++        </div>
++      ) : null}
++    </div>
++  )
++}
+diff --git a/src/components/messages/UserMessage.tsx b/src/components/messages/UserMessage.tsx
+index 9ab181b..d3d4ca0 100644
+--- a/src/components/messages/UserMessage.tsx
++++ b/src/components/messages/UserMessage.tsx
+@@ -61,7 +61,7 @@ export const UserMessage = memo(function UserMessage({
+   }
+ 
+   return (
+-    <div className={clsx(styles.container, isFirst && styles.isFirst)}>
++    <div className={clsx(styles.container, isFirst && styles.isFirst)} data-message-id={message.id}>
+       {message.files.length > 0 ? (
+         <div
+           className={clsx(
 diff --git a/src/components/settings/SettingsDialog.tsx b/src/components/settings/SettingsDialog.tsx
 index a74b591..643453b 100644
 --- a/src/components/settings/SettingsDialog.tsx
@@ -53,43 +354,43 @@ index a74b591..643453b 100644
          </div>
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
-index 0000000..23cc8c2
+index 0000000..d759517
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.module.css
-@@ -0,0 +1,126 @@
-+.backdrop {
+@@ -0,0 +1,174 @@
++.overlay {
 +  position: fixed;
 +  inset: 0;
 +  z-index: 40;
++  display: flex;
++  align-items: flex-start;
++  justify-content: center;
++  padding-top: 12vh;
++  background: rgba(17, 24, 39, 0.32);
 +}
 +
-+.panel {
-+  position: fixed;
-+  top: 58px;
-+  left: 16px;
-+  z-index: 41;
++.dialog {
 +  display: flex;
 +  flex-direction: column;
 +  box-sizing: border-box;
-+  width: 380px;
++  width: 520px;
 +  max-width: calc(100vw - 32px);
-+  max-height: 60vh;
++  max-height: 70vh;
 +  overflow: hidden;
-+  border: 1px solid var(--dsw-alias-border-l2);
-+  border-radius: 16px;
++  border-radius: 20px;
 +  background: var(--dsw-alias-bg-base);
 +  color: var(--dsw-alias-label-primary);
-+  box-shadow: 0 12px 32px rgba(28, 34, 48, 0.16);
++  box-shadow: 0 16px 48px rgba(17, 24, 39, 0.24);
 +}
 +
 +.field {
 +  display: flex;
 +  align-items: center;
 +  flex-shrink: 0;
-+  gap: 8px;
++  gap: 10px;
 +  box-sizing: border-box;
-+  height: 46px;
-+  padding: 0 16px;
++  height: 56px;
++  padding: 0 12px 0 18px;
 +  border-bottom: 1px solid var(--dsw-alias-border-l2);
 +}
 +
@@ -109,11 +410,31 @@ index 0000000..23cc8c2
 +  background: transparent;
 +  color: inherit;
 +  font: inherit;
-+  font-size: 14px;
++  font-size: 15px;
 +}
 +
 +.input::placeholder {
 +  color: var(--dsw-alias-label-tertiary);
++}
++
++.close {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  width: 28px;
++  height: 28px;
++  padding: 0;
++  border: none;
++  border-radius: 8px;
++  background: transparent;
++  color: var(--dsw-alias-label-tertiary);
++  cursor: pointer;
++}
++
++.close:hover {
++  background: var(--dsw-alias-interactive-bg-hover);
++  color: var(--dsw-alias-label-primary);
 +}
 +
 +.list {
@@ -125,13 +446,14 @@ index 0000000..23cc8c2
 +}
 +
 +.item {
-+  display: block;
++  display: flex;
++  align-items: flex-start;
++  gap: 10px;
 +  box-sizing: border-box;
 +  width: 100%;
-+  margin-bottom: 2px;
-+  padding: 9px 12px;
++  padding: 12px;
 +  border: none;
-+  border-radius: 10px;
++  border-radius: 12px;
 +  background: transparent;
 +  color: inherit;
 +  font: inherit;
@@ -139,8 +461,33 @@ index 0000000..23cc8c2
 +  cursor: pointer;
 +}
 +
-+.itemActive {
++.item:hover,
++.item[data-active='true'] {
 +  background: var(--dsw-alias-interactive-bg-hover);
++}
++
++.glyph {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  width: 32px;
++  height: 32px;
++  border-radius: 50%;
++  background: rgba(0, 0, 0, 0.05);
++  color: var(--dsw-alias-label-secondary);
++}
++
++.glyph[data-role='assistant'] {
++  color: var(--dsw-alias-brand-primary);
++}
++
++.body {
++  display: flex;
++  flex-direction: column;
++  flex: 1;
++  min-width: 0;
++  gap: 2px;
 +}
 +
 +.title {
@@ -153,54 +500,66 @@ index 0000000..23cc8c2
 +}
 +
 +.snippet {
-+  margin-top: 2px;
 +  overflow: hidden;
-+  font-size: 12px;
-+  line-height: 18px;
++  font-size: 13px;
++  line-height: 20px;
 +  color: var(--dsw-alias-label-tertiary);
 +  white-space: nowrap;
 +  text-overflow: ellipsis;
 +}
 +
-+.mark {
-+  background: transparent;
-+  color: var(--dsw-alias-brand-primary);
-+  font-weight: 600;
++.date {
++  flex-shrink: 0;
++  padding-top: 2px;
++  font-size: 12px;
++  line-height: 20px;
++  color: var(--dsw-alias-label-tertiary);
 +}
 +
 +.empty {
-+  padding: 28px 16px;
++  padding: 36px 16px;
 +  text-align: center;
 +  font-size: 13px;
 +  color: var(--dsw-alias-label-tertiary);
 +}
 +
 +@media (max-width: 520px) {
-+  .panel {
-+    top: 12px;
-+    left: 12px;
-+    width: calc(100vw - 24px);
-+    max-height: 70vh;
++  .overlay {
++    padding-top: 8vh;
++  }
++
++  .dialog {
++    max-height: 76vh;
 +  }
 +}
 diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
 new file mode 100644
-index 0000000..632af1a
+index 0000000..bc8f393
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.tsx
-@@ -0,0 +1,166 @@
-+import clsx from 'clsx'
+@@ -0,0 +1,199 @@
 +import { useEffect, useRef, useState } from 'react'
++import type { KeyboardEvent } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
-+import { IconSearchOutline16 } from '../base/icons.js'
++import { useSettings } from '../../services/settings.js'
++import { IconCloseOutline16, IconSearchOutline16 } from '../base/icons.js'
 +import { loadSession } from '../../services/chat/db.js'
 +import { selectSession, useChatStore } from '../../services/chat/store.js'
-+import type { Message, SessionSummary } from '../../services/chat/types.js'
++import type { Message } from '../../services/chat/types.js'
 +import { closeSessionSearch, setSessionSearchQuery, useSessionSearch } from './sessionSearchState.js'
++import { UserGlyph, WhaleGlyph } from './sessionSearchGlyphs.js'
 +import styles from './SessionSearch.module.css'
 +
-+/** 一条命中：会话摘要、展示用的片段、时间。 */
-+type Hit = SessionSummary & { snippet: string }
++/** 一条命中：一条消息的片段，或标题命中时合成的摘要行。 */
++type Hit = {
++  sessionId: string
++  title: string
++  snippet: string
++  at: number
++  role: Message['role']
++}
++
++const MAX_HITS = 60
 +
 +/** 消息的可搜索文本：提问取正文，回答取文本块（不含思考）。 */
 +const messageText = (message: Message): string => message.role === 'user'
@@ -210,34 +569,24 @@ index 0000000..632af1a
 +    .join('\n')
 +
 +/** 截取命中位置附近的片段，两端超出的部分用省略号。 */
-+const makeSnippet = (text: string, needle: string): string => {
-+  const index = text.toLowerCase().indexOf(needle)
-+  if (index < 0) return text.slice(0, 60)
-+  const start = Math.max(0, index - 24)
-+  const end = Math.min(text.length, index + needle.length + 48)
++const makeSnippet = (text: string, index: number, length: number): string => {
++  const start = Math.max(0, index - 30)
++  const end = Math.min(text.length, index + length + 60)
 +  return `${start > 0 ? '…' : ''}${text.slice(start, end).replace(/\s+/g, ' ')}${end < text.length ? '…' : ''}`
 +}
 +
-+/** 把片段里的关键词标成高亮。 */
-+const highlight = (text: string, needle: string) => {
-+  if (needle.length === 0) return text
-+  const index = text.toLowerCase().indexOf(needle)
-+  if (index < 0) return text
-+  return (
-+    <>
-+      {text.slice(0, index)}
-+      <mark className={styles.mark}>{text.slice(index, index + needle.length)}</mark>
-+      {text.slice(index + needle.length)}
-+    </>
-+  )
-+}
++const formatDate = (at: number, locale: string): string => new Intl.DateTimeFormat(locale, {
++  month: 'long',
++  day: 'numeric',
++}).format(new Date(at))
 +
 +/**
-+ * 会话搜索浮层：按标题与正文检索本地对话，回车或点击打开对应会话。
-+ * 交互对齐网页版：点搜索按钮打开，Esc 关闭。
++ * 会话搜索浮层：按标题与正文检索本地对话，结果按消息逐条列出。
++ * 交互对齐网页版：暗背景居中面板、Esc 关闭、回车打开第一条。
 + */
 +export const SessionSearch = () => {
 +  const t = useTranslate()
++  const locale = useSettings(state => state.locale)
 +  const open = useSessionSearch(state => state.open)
 +  const query = useSessionSearch(state => state.query)
 +  const sessions = useChatStore(state => state.sessions)
@@ -248,8 +597,7 @@ index 0000000..632af1a
 +  const needle = query.trim().toLowerCase()
 +
 +  useEffect(() => {
-+    if (!open) return
-+    inputRef.current?.focus()
++    if (open) inputRef.current?.focus()
 +  }, [open])
 +
 +  useEffect(() => {
@@ -265,18 +613,38 @@ index 0000000..632af1a
 +      void (async () => {
 +        const found: Hit[] = []
 +        for (const summary of sessions) {
-+          if (summary.title.toLowerCase().includes(needle)) {
-+            found.push({ ...summary, snippet: summary.title })
-+            continue
-+          }
++          if (found.length >= MAX_HITS) break
++          const titleHit = summary.title.toLowerCase().includes(needle)
 +          const session = await loadSession(summary.id).catch(() => undefined)
 +          if (session === undefined) continue
-+          const hit = session.messages.find(message => messageText(message).toLowerCase().includes(needle))
-+          if (hit !== undefined) found.push({ ...summary, snippet: makeSnippet(messageText(hit), needle) })
++          let messageHit = false
++          for (const message of session.messages) {
++            const text = messageText(message)
++            const index = text.toLowerCase().indexOf(needle)
++            if (index < 0) continue
++            messageHit = true
++            found.push({
++              sessionId: summary.id,
++              title: summary.title,
++              snippet: makeSnippet(text, index, needle.length),
++              at: message.createdAt,
++              role: message.role,
++            })
++            if (found.length >= MAX_HITS) break
++          }
++          if (titleHit && !messageHit) {
++            found.push({
++              sessionId: summary.id,
++              title: summary.title,
++              snippet: summary.title,
++              at: summary.updatedAt,
++              role: 'assistant',
++            })
++          }
 +        }
 +        if (cancelled) return
-+        found.sort((a, b) => b.updatedAt - a.updatedAt)
-+        setHits(found)
++        found.sort((a, b) => b.at - a.at)
++        setHits(found.slice(0, MAX_HITS))
 +        setActive(0)
 +        setSearching(false)
 +      })()
@@ -289,12 +657,12 @@ index 0000000..632af1a
 +
 +  if (!open) return null
 +
-+  const choose = (id: string) => {
-+    selectSession(id)
++  const choose = (sessionId: string) => {
++    selectSession(sessionId)
 +    closeSessionSearch()
 +  }
 +
-+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
++  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
 +    if (event.key === 'Escape') {
 +      event.preventDefault()
 +      closeSessionSearch()
@@ -312,14 +680,18 @@ index 0000000..632af1a
 +    }
 +    if (event.key === 'Enter' && hits.length > 0) {
 +      event.preventDefault()
-+      choose(hits[Math.min(active, hits.length - 1)].id)
++      choose(hits[Math.min(active, hits.length - 1)].sessionId)
 +    }
 +  }
 +
 +  return (
-+    <>
-+      <div className={styles.backdrop} onClick={closeSessionSearch} />
-+      <div className={styles.panel} role="dialog" aria-label={t('searchSessionsButton')}>
++    <div className={styles.overlay} onClick={closeSessionSearch}>
++      <div
++        className={styles.dialog}
++        role="dialog"
++        aria-label={t('searchSessionsButton')}
++        onClick={event => event.stopPropagation()}
++      >
 +        <div className={styles.field}>
 +          <span className={styles.fieldIcon}><IconSearchOutline16 /></span>
 +          <input
@@ -330,29 +702,39 @@ index 0000000..632af1a
 +            onChange={event => setSessionSearchQuery(event.target.value)}
 +            onKeyDown={onKeyDown}
 +          />
++          <button type="button" className={styles.close} aria-label={t('close')} onClick={closeSessionSearch}>
++            <IconCloseOutline16 />
++          </button>
 +        </div>
-+        <div className={styles.list}>
-+          {needle.length === 0 ? null : hits.length === 0 ? (
-+            <div className={styles.empty}>{searching ? t('sessionLoading') : t('searchSessionsNoResult')}</div>
-+          ) : (
-+            hits.map((hit, index) => (
-+              <button
-+                key={hit.id}
-+                type="button"
-+                className={clsx(styles.item, index === active && styles.itemActive)}
-+                onMouseEnter={() => setActive(index)}
-+                onClick={() => choose(hit.id)}
-+              >
-+                <div className={styles.title}>{highlight(hit.title, needle)}</div>
-+                {hit.snippet === hit.title ? null : (
-+                  <div className={styles.snippet}>{highlight(hit.snippet, needle)}</div>
-+                )}
-+              </button>
-+            ))
-+          )}
-+        </div>
++        {needle.length === 0 ? null : (
++          <div className={styles.list}>
++            {hits.length === 0 ? (
++              <div className={styles.empty}>{searching ? t('sessionLoading') : t('searchSessionsNoResult')}</div>
++            ) : (
++              hits.map((hit, index) => (
++                <button
++                  key={`${hit.sessionId}-${hit.at}-${index}`}
++                  type="button"
++                  className={styles.item}
++                  data-active={index === active ? 'true' : undefined}
++                  onMouseEnter={() => setActive(index)}
++                  onClick={() => choose(hit.sessionId)}
++                >
++                  <span className={styles.glyph} data-role={hit.role}>
++                    {hit.role === 'user' ? <UserGlyph /> : <WhaleGlyph />}
++                  </span>
++                  <span className={styles.body}>
++                    <span className={styles.title}>{hit.title}</span>
++                    <span className={styles.snippet}>{hit.snippet}</span>
++                  </span>
++                  <span className={styles.date}>{formatDate(hit.at, locale)}</span>
++                </button>
++              ))
++            )}
++          </div>
++        )}
 +      </div>
-+    </>
++    </div>
 +  )
 +}
 diff --git a/src/components/sider/Sider.module.css b/src/components/sider/Sider.module.css
@@ -426,6 +808,31 @@ index 2f3cf56..dc2cb44 100644
        </div>
        <button
          type="button"
+diff --git a/src/components/sider/sessionSearchGlyphs.tsx b/src/components/sider/sessionSearchGlyphs.tsx
+new file mode 100644
+index 0000000..87c2c10
+--- /dev/null
++++ b/src/components/sider/sessionSearchGlyphs.tsx
+@@ -0,0 +1,18 @@
++import type { JSX } from 'react'
++
++/** 会话搜索行里的角色图标：提问用人物，回答用 DeepSeek 小鲸鱼。 */
++
++export const UserGlyph = (): JSX.Element => (
++  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden>
++    <circle cx="8" cy="5.4" r="2.5" />
++    <path d="M3.2 13.6c.7-2.6 2.6-4 4.8-4s4.1 1.4 4.8 4" />
++  </svg>
++)
++
++export const WhaleGlyph = (): JSX.Element => (
++  <svg viewBox="0 0 36 36" width="18" height="18" fill="currentColor" aria-hidden>
++    <g transform="translate(4 7.3) scale(1.0512) translate(-0.163 -1.75)">
++      <path d="M26.5174 3.39471C26.235 3.2567 26.1137 3.52006 25.9487 3.65346C25.8923 3.69659 25.8446 3.75294 25.7969 3.80469C25.3846 4.24516 24.9027 4.53439 24.2737 4.49989C23.3536 4.44814 22.5682 4.73737 21.8735 5.44119C21.7258 4.57349 21.2353 4.0554 20.4889 3.72304C20.0985 3.55054 19.7034 3.37746 19.4297 3.00197C19.2388 2.73459 19.1865 2.43673 19.091 2.14289C19.0301 1.96579 18.9697 1.78466 18.7656 1.75418C18.5442 1.71968 18.4574 1.90541 18.3705 2.06067C18.0232 2.69549 17.8887 3.39471 17.9019 4.10313C17.9324 5.6965 18.6051 6.96556 19.9421 7.86834C20.0939 7.97184 20.133 8.07535 20.0852 8.22658C19.9938 8.53766 19.8857 8.83955 19.7903 9.15063C19.7293 9.34901 19.6384 9.39271 19.4257 9.30588C18.692 8.9994 18.0583 8.54571 17.4982 7.99772C16.5477 7.07827 15.6881 6.06336 14.6162 5.26869C14.3644 5.08296 14.1125 4.91045 13.8521 4.746C12.7584 3.68394 13.9952 2.81164 14.2816 2.70814C14.5812 2.60003 14.3857 2.22857 13.4179 2.23317C12.4502 2.2372 11.5646 2.56151 10.4359 2.99335C10.2708 3.05832 10.0972 3.10547 9.91951 3.14457C8.8954 2.95022 7.83162 2.90709 6.72069 3.03245C4.62877 3.26533 2.95777 4.25436 1.72954 5.94261C0.254043 7.97184 -0.0932678 10.2777 0.33167 12.6824C0.778458 15.2171 2.07225 17.3153 4.06008 18.9558C6.12152 20.6567 8.49577 21.4905 11.2047 21.3306C12.8498 21.2358 14.6812 21.0155 16.7473 19.2669C17.2682 19.5262 17.8151 19.6297 18.7219 19.7074C19.4205 19.7723 20.0933 19.6729 20.6143 19.5648C21.4302 19.3923 21.3739 18.6367 21.0789 18.4981C18.6874 17.3843 19.2124 17.8374 18.7351 17.4706C19.9501 16.033 21.8063 13.4776 22.379 9.99821C22.4353 9.61409 22.5072 9.073 22.4986 8.76192C22.494 8.57216 22.5377 8.49856 22.7545 8.47671C23.3536 8.40771 23.935 8.24383 24.4692 7.94999C26.0188 7.10357 26.6439 5.71318 26.7911 4.04678C26.8129 3.79204 26.7865 3.52869 26.5174 3.39471ZM13.0143 18.3946C10.6964 16.5724 9.5722 15.9726 9.10816 15.9985C8.67402 16.0244 8.75222 16.5212 8.84768 16.8449C8.94773 17.1646 9.07768 17.3849 9.25996 17.6655C9.38589 17.8512 9.47272 18.1272 9.13404 18.3348C8.38766 18.7965 7.08985 18.1796 7.0289 18.1491C5.51833 17.2595 4.25559 16.0853 3.36546 14.4793C2.50581 12.9337 2.0067 11.2753 1.92447 9.50542C1.90262 9.07818 2.02855 8.92695 2.45406 8.84932C3.01413 8.74582 3.59144 8.72397 4.15093 8.80619C6.51656 9.15178 8.53027 10.2092 10.2185 11.8848C11.1822 12.8388 11.9114 13.979 12.6623 15.0929C13.461 16.2757 14.3201 17.4027 15.4144 18.3268C15.8008 18.6505 16.109 18.8966 16.404 19.0783C15.5144 19.1778 14.0297 19.1991 13.0143 18.3958V18.3946ZM14.1252 11.2489C14.1252 11.0591 14.277 10.9079 14.4679 10.9079C14.511 10.9079 14.5501 10.9165 14.5852 10.9292C14.6329 10.9464 14.6766 10.9723 14.7111 11.0114C14.7721 11.0718 14.8066 11.158 14.8066 11.2489C14.8066 11.4386 14.6548 11.5899 14.4639 11.5899C14.273 11.5899 14.1252 11.4386 14.1252 11.2489ZM17.5759 13.0188C17.3545 13.1096 17.1331 13.1873 16.9203 13.1959C16.5903 13.2131 16.2303 13.0791 16.0348 12.9153C15.7312 12.6605 15.5139 12.5179 15.423 12.0734C15.3839 11.8837 15.4057 11.5899 15.4402 11.4214C15.5185 11.0585 15.4316 10.8257 15.1757 10.614C14.9676 10.4415 14.7025 10.3938 14.4115 10.3938C14.3029 10.3938 14.2034 10.3461 14.1292 10.3076C14.0079 10.2472 13.9078 10.096 14.0033 9.91023C14.0338 9.84985 14.1815 9.70322 14.216 9.67734C14.6111 9.45251 15.0665 9.52612 15.488 9.6946C15.8784 9.85445 16.174 10.1477 16.5989 10.5623C17.033 11.0631 17.1112 11.2011 17.3585 11.5772C17.554 11.871 17.7317 12.1729 17.8536 12.5185C17.9272 12.7341 17.8317 12.9107 17.5759 13.0188Z" />
++    </g>
++  </svg>
++)
+\ No newline at end of file
 diff --git a/src/components/sider/sessionSearchState.ts b/src/components/sider/sessionSearchState.ts
 new file mode 100644
 index 0000000..3fe9dca
@@ -448,7 +855,7 @@ index 0000000..3fe9dca
 +
 +export const setSessionSearchQuery = (query: string) => useSessionSearch.setState({ query })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..5636dc7 100644
+index 2d49027..59655ef 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,9 @@ export const en = {
@@ -456,7 +863,7 @@ index 2d49027..5636dc7 100644
    expandSiderbarButton: 'Open sidebar',
    collapseSiderbarButton: 'Close sidebar',
 +  searchSessionsButton: 'Search chats',
-+  searchSessionsPlaceholder: 'Search titles and messages',
++  searchSessionsPlaceholder: 'Search chats...',
 +  searchSessionsNoResult: 'No matching chats',
    newChat: 'New chat',
    untitledChat: 'New chat',
@@ -471,7 +878,7 @@ index 2d49027..5636dc7 100644
    deleteSessionWithFilesDescription:
      'This chat and its uploaded files will be permanently deleted and cannot be recovered. Delete this chat?',
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..91a9a2d 100644
+index d99f058..4efdf7f 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,9 @@ export const zh = {
@@ -479,7 +886,7 @@ index d99f058..91a9a2d 100644
    expandSiderbarButton: '打开边栏',
    collapseSiderbarButton: '收起边栏',
 +  searchSessionsButton: '搜索对话',
-+  searchSessionsPlaceholder: '搜索标题或内容',
++  searchSessionsPlaceholder: '搜索对话内容...',
 +  searchSessionsNoResult: '没有匹配的对话',
    newChat: '开启新对话',
    untitledChat: '新对话',

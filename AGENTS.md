@@ -19,7 +19,8 @@
 
 上游基准：`5d5dd754ebc1948e977ddb880a9eb5aa25f37b4c`（chat-demo v0.1.1，MIT）。补丁在
 `webview/patches/0001-dsh-integration.patch`：请求落点、品牌字标、隐藏 API Key 输入、启动时取走导入、
-会话搜索（侧栏搜索按钮 + 浮层，按标题与正文检索本地会话，见 `src/components/sider/SessionSearch.tsx`）。
+会话搜索（侧栏搜索按钮 + 居中浮层，按标题与正文检索本地会话，见 `src/components/sider/SessionSearch.tsx`）、
+右侧轮次进度条（每条提问一根刻度，悬停预览、点击跳转，见 `src/components/messages/TurnRail.tsx`）。
 
 改前端要跑 `pwsh scripts/build-webview.ps1`：它会先 `git checkout` 上游、`git clean -fd`、再 `git apply` 补丁，
 所以**不要在 vendor 里直接留改动**——改完先 `git add -A` 生成新补丁，再跑构建，否则改动会被重置掉。
