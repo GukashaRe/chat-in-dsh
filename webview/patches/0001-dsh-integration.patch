@@ -479,7 +479,7 @@ index f86d729..b9b592c 100644
    transition: color 0.2s;
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
-index 0000000..ea8ddcf
+index 0000000..3d3ac6c
 --- /dev/null
 +++ b/src/components/messages/TurnRail.module.css
 @@ -0,0 +1,201 @@
@@ -533,8 +533,8 @@ index 0000000..ea8ddcf
 +
 +.rail[data-show='true'] .nav {
 +  pointer-events: auto;
-+  border-color: transparent;
-+  background: var(--dsw-alias-bg-layer-2);
++  border-color: var(--dsw-alias-border-inverted);
++  background: var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-layer-2));
 +  box-shadow: var(--dsw-shadow-lv3);
 +}
 +
@@ -553,7 +553,7 @@ index 0000000..ea8ddcf
 +  height: 32px;
 +  pointer-events: none;
 +  opacity: 0;
-+  background: linear-gradient(var(--dsw-alias-bg-layer-2) 20.19%, rgba(255, 255, 255, 0) 100%);
++  background: linear-gradient(var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-layer-2)) 20.19%, rgba(255, 255, 255, 0) 100%);
 +  transition: opacity 0.2s;
 +}
 +
@@ -577,7 +577,7 @@ index 0000000..ea8ddcf
 +  align-items: flex-end;
 +  box-sizing: border-box;
 +  max-height: 250px;
-+  padding: 4px 0 4px 10px;
++  padding: 15px 0 15px 24px;
 +  overflow-y: auto;
 +  overscroll-behavior: contain;
 +  scrollbar-width: none;
