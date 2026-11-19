@@ -842,10 +842,10 @@ index c50dd62..ee3473b 100644
                label: t('delete'),
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
-index 0000000..e144ecd
+index 0000000..5a05ac2
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.module.css
-@@ -0,0 +1,219 @@
+@@ -0,0 +1,234 @@
 +/* 尺寸与结构对齐官网：660px 宽、72vh 高、结果行最小 67px。 */
 +.overlay {
 +  position: fixed;
@@ -854,29 +854,40 @@ index 0000000..e144ecd
 +  display: flex;
 +  align-items: center;
 +  justify-content: center;
-+  padding: 12px;
-+  background: rgba(0, 0, 0, 0.42);
++  background: rgba(0, 0, 0, 0.36);
++  -webkit-backdrop-filter: blur(2px);
++  backdrop-filter: blur(2px);
++}
++
++/* 官网结构：居中的 72vh 容器，面板贴在容器顶部，展开时占满 */
++.frame {
++  display: flex;
++  flex-direction: column;
++  width: min(660px, 100vw - 24px);
++  height: 72vh;
++  max-height: calc(100% - 32px);
 +}
 +
 +.dialog {
 +  display: flex;
 +  flex-direction: column;
 +  box-sizing: border-box;
-+  width: min(660px, 100vw - 24px);
++  width: 100%;
 +  height: auto;
-+  max-height: calc(100% - 24px);
++  max-height: 100%;
 +  overflow: hidden;
 +  border-radius: 20px;
 +  background: var(--dsw-alias-bg-layer-2);
 +  color: var(--dsw-alias-label-primary);
 +  box-shadow:
-+    0 2px 4px rgba(0, 0, 0, 0.04),
-+    0 4px 10px rgba(0, 0, 0, 0.02);
++    inset 0 0 0 1px transparent,
++    0 0 1px 0 rgba(0, 0, 0, 0.2),
++    0 0 4px 0 rgba(0, 0, 0, 0.02),
++    0 12px 32px 0 rgba(0, 0, 0, 0.08);
 +}
 +
-+/* 官网：未输入关键词时浮层只有输入条，输入后才展开成 72vh */
 +.dialog[data-expanded='true'] {
-+  height: 72vh;
++  height: 100%;
 +}
 +
 +.field {
@@ -1058,19 +1069,23 @@ index 0000000..e144ecd
 +}
 +
 +@media not all and (min-width: 768px) {
-+  .dialog {
++  .frame {
 +    width: 100vw;
 +    height: 100vh;
 +    max-height: none;
++  }
++
++  .dialog {
++    height: 100%;
 +    border-radius: 0;
 +  }
 +}
 diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
 new file mode 100644
-index 0000000..21bd50a
+index 0000000..26d805f
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.tsx
-@@ -0,0 +1,269 @@
+@@ -0,0 +1,271 @@
 +import { useEffect, useRef, useState } from 'react'
 +import type { KeyboardEvent } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
@@ -1279,6 +1294,7 @@ index 0000000..21bd50a
 +
 +  return (
 +    <div className={styles.overlay} onClick={closeSessionSearch}>
++      <div className={styles.frame}>
 +      <div
 +        className={styles.dialog}
 +        data-expanded={needle.length > 0 ? 'true' : undefined}
@@ -1336,6 +1352,7 @@ index 0000000..21bd50a
 +            ))
 +          )}
 +        </div>
++      </div>
 +      </div>
 +    </div>
 +  )
