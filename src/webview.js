@@ -78,15 +78,10 @@ async function readJsonBody(req) {
   if (raw.length === 0) return {}
   return JSON.parse(raw.toString('utf8'))
 }
-/** 读取并缓存注入了引导脚本的入口页。 */
-let cachedIndex
-
+/** 读取入口页并注入引导脚本；每次现读，避免插件升级后仍引用旧的资源名。 */
 function readIndex() {
-  if (cachedIndex === undefined) {
-    const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8')
-    cachedIndex = html.replace(/<head>/iu, `<head>${BOOTSTRAP}`)
-  }
-  return cachedIndex
+  const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8')
+  return html.replace(/<head>/iu, `<head>${BOOTSTRAP}`)
 }
 
 async function sendFile(res, file) {

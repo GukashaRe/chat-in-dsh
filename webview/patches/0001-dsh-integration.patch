@@ -11,6 +11,26 @@ index b236b4d..ffe5052 100644
    devServer,
  }: ConfigOptions = {}): Configuration => ({
    mode: dev ? 'development' : 'production',
+diff --git a/src/app/App.tsx b/src/app/App.tsx
+index d204c0f..db67a72 100644
+--- a/src/app/App.tsx
++++ b/src/app/App.tsx
+@@ -10,6 +10,7 @@ import {
+   useChatStore,
+ } from '../services/chat/store.js'
+ import { SearchPanel } from '../components/search/SearchPanel.js'
++import { SessionSearch } from '../components/sider/SessionSearch.js'
+ import { closeSearchPanel } from '../components/search/searchPanelState.js'
+ import { SessionView } from '../components/session/SessionView.js'
+ import { MobileHeader } from '../components/session/MobileHeader.js'
+@@ -131,6 +132,7 @@ export const App = () => {
+           </div>
+         </main>
+         <SearchPanel />
++        <SessionSearch />
+       </div>
+       <SettingsDialog />
+       <Toast />
 diff --git a/src/components/settings/SettingsDialog.tsx b/src/components/settings/SettingsDialog.tsx
 index a74b591..643453b 100644
 --- a/src/components/settings/SettingsDialog.tsx
@@ -31,24 +51,417 @@ index a74b591..643453b 100644
              </>
            )}
          </div>
+diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
+new file mode 100644
+index 0000000..23cc8c2
+--- /dev/null
++++ b/src/components/sider/SessionSearch.module.css
+@@ -0,0 +1,126 @@
++.backdrop {
++  position: fixed;
++  inset: 0;
++  z-index: 40;
++}
++
++.panel {
++  position: fixed;
++  top: 58px;
++  left: 16px;
++  z-index: 41;
++  display: flex;
++  flex-direction: column;
++  box-sizing: border-box;
++  width: 380px;
++  max-width: calc(100vw - 32px);
++  max-height: 60vh;
++  overflow: hidden;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 16px;
++  background: var(--dsw-alias-bg-base);
++  color: var(--dsw-alias-label-primary);
++  box-shadow: 0 12px 32px rgba(28, 34, 48, 0.16);
++}
++
++.field {
++  display: flex;
++  align-items: center;
++  flex-shrink: 0;
++  gap: 8px;
++  box-sizing: border-box;
++  height: 46px;
++  padding: 0 16px;
++  border-bottom: 1px solid var(--dsw-alias-border-l2);
++}
++
++.fieldIcon {
++  display: flex;
++  flex-shrink: 0;
++  color: var(--dsw-alias-label-tertiary);
++}
++
++.input {
++  flex: 1;
++  min-width: 0;
++  height: 100%;
++  padding: 0;
++  border: none;
++  outline: none;
++  background: transparent;
++  color: inherit;
++  font: inherit;
++  font-size: 14px;
++}
++
++.input::placeholder {
++  color: var(--dsw-alias-label-tertiary);
++}
++
++.list {
++  flex: 1;
++  min-height: 0;
++  overflow-y: auto;
++  padding: 6px;
++  scrollbar-color: var(--scroll-color) transparent;
++}
++
++.item {
++  display: block;
++  box-sizing: border-box;
++  width: 100%;
++  margin-bottom: 2px;
++  padding: 9px 12px;
++  border: none;
++  border-radius: 10px;
++  background: transparent;
++  color: inherit;
++  font: inherit;
++  text-align: left;
++  cursor: pointer;
++}
++
++.itemActive {
++  background: var(--dsw-alias-interactive-bg-hover);
++}
++
++.title {
++  overflow: hidden;
++  font-size: 14px;
++  line-height: 22px;
++  font-weight: 500;
++  white-space: nowrap;
++  text-overflow: ellipsis;
++}
++
++.snippet {
++  margin-top: 2px;
++  overflow: hidden;
++  font-size: 12px;
++  line-height: 18px;
++  color: var(--dsw-alias-label-tertiary);
++  white-space: nowrap;
++  text-overflow: ellipsis;
++}
++
++.mark {
++  background: transparent;
++  color: var(--dsw-alias-brand-primary);
++  font-weight: 600;
++}
++
++.empty {
++  padding: 28px 16px;
++  text-align: center;
++  font-size: 13px;
++  color: var(--dsw-alias-label-tertiary);
++}
++
++@media (max-width: 520px) {
++  .panel {
++    top: 12px;
++    left: 12px;
++    width: calc(100vw - 24px);
++    max-height: 70vh;
++  }
++}
+diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
+new file mode 100644
+index 0000000..632af1a
+--- /dev/null
++++ b/src/components/sider/SessionSearch.tsx
+@@ -0,0 +1,166 @@
++import clsx from 'clsx'
++import { useEffect, useRef, useState } from 'react'
++import { useTranslate } from '../../i18n/index.js'
++import { IconSearchOutline16 } from '../base/icons.js'
++import { loadSession } from '../../services/chat/db.js'
++import { selectSession, useChatStore } from '../../services/chat/store.js'
++import type { Message, SessionSummary } from '../../services/chat/types.js'
++import { closeSessionSearch, setSessionSearchQuery, useSessionSearch } from './sessionSearchState.js'
++import styles from './SessionSearch.module.css'
++
++/** 一条命中：会话摘要、展示用的片段、时间。 */
++type Hit = SessionSummary & { snippet: string }
++
++/** 消息的可搜索文本：提问取正文，回答取文本块（不含思考）。 */
++const messageText = (message: Message): string => message.role === 'user'
++  ? message.content
++  : message.blocks
++    .flatMap(block => (block.type === 'text' ? [block.text] : []))
++    .join('\n')
++
++/** 截取命中位置附近的片段，两端超出的部分用省略号。 */
++const makeSnippet = (text: string, needle: string): string => {
++  const index = text.toLowerCase().indexOf(needle)
++  if (index < 0) return text.slice(0, 60)
++  const start = Math.max(0, index - 24)
++  const end = Math.min(text.length, index + needle.length + 48)
++  return `${start > 0 ? '…' : ''}${text.slice(start, end).replace(/\s+/g, ' ')}${end < text.length ? '…' : ''}`
++}
++
++/** 把片段里的关键词标成高亮。 */
++const highlight = (text: string, needle: string) => {
++  if (needle.length === 0) return text
++  const index = text.toLowerCase().indexOf(needle)
++  if (index < 0) return text
++  return (
++    <>
++      {text.slice(0, index)}
++      <mark className={styles.mark}>{text.slice(index, index + needle.length)}</mark>
++      {text.slice(index + needle.length)}
++    </>
++  )
++}
++
++/**
++ * 会话搜索浮层：按标题与正文检索本地对话，回车或点击打开对应会话。
++ * 交互对齐网页版：点搜索按钮打开，Esc 关闭。
++ */
++export const SessionSearch = () => {
++  const t = useTranslate()
++  const open = useSessionSearch(state => state.open)
++  const query = useSessionSearch(state => state.query)
++  const sessions = useChatStore(state => state.sessions)
++  const [hits, setHits] = useState<Hit[]>([])
++  const [active, setActive] = useState(0)
++  const [searching, setSearching] = useState(false)
++  const inputRef = useRef<HTMLInputElement>(null)
++  const needle = query.trim().toLowerCase()
++
++  useEffect(() => {
++    if (!open) return
++    inputRef.current?.focus()
++  }, [open])
++
++  useEffect(() => {
++    if (!open) return
++    if (needle.length === 0) {
++      setHits([])
++      setSearching(false)
++      return
++    }
++    let cancelled = false
++    setSearching(true)
++    const timer = setTimeout(() => {
++      void (async () => {
++        const found: Hit[] = []
++        for (const summary of sessions) {
++          if (summary.title.toLowerCase().includes(needle)) {
++            found.push({ ...summary, snippet: summary.title })
++            continue
++          }
++          const session = await loadSession(summary.id).catch(() => undefined)
++          if (session === undefined) continue
++          const hit = session.messages.find(message => messageText(message).toLowerCase().includes(needle))
++          if (hit !== undefined) found.push({ ...summary, snippet: makeSnippet(messageText(hit), needle) })
++        }
++        if (cancelled) return
++        found.sort((a, b) => b.updatedAt - a.updatedAt)
++        setHits(found)
++        setActive(0)
++        setSearching(false)
++      })()
++    }, 150)
++    return () => {
++      cancelled = true
++      clearTimeout(timer)
++    }
++  }, [open, needle, sessions])
++
++  if (!open) return null
++
++  const choose = (id: string) => {
++    selectSession(id)
++    closeSessionSearch()
++  }
++
++  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
++    if (event.key === 'Escape') {
++      event.preventDefault()
++      closeSessionSearch()
++      return
++    }
++    if (event.key === 'ArrowDown') {
++      event.preventDefault()
++      setActive(index => Math.min(hits.length - 1, index + 1))
++      return
++    }
++    if (event.key === 'ArrowUp') {
++      event.preventDefault()
++      setActive(index => Math.max(0, index - 1))
++      return
++    }
++    if (event.key === 'Enter' && hits.length > 0) {
++      event.preventDefault()
++      choose(hits[Math.min(active, hits.length - 1)].id)
++    }
++  }
++
++  return (
++    <>
++      <div className={styles.backdrop} onClick={closeSessionSearch} />
++      <div className={styles.panel} role="dialog" aria-label={t('searchSessionsButton')}>
++        <div className={styles.field}>
++          <span className={styles.fieldIcon}><IconSearchOutline16 /></span>
++          <input
++            ref={inputRef}
++            className={styles.input}
++            value={query}
++            placeholder={t('searchSessionsPlaceholder')}
++            onChange={event => setSessionSearchQuery(event.target.value)}
++            onKeyDown={onKeyDown}
++          />
++        </div>
++        <div className={styles.list}>
++          {needle.length === 0 ? null : hits.length === 0 ? (
++            <div className={styles.empty}>{searching ? t('sessionLoading') : t('searchSessionsNoResult')}</div>
++          ) : (
++            hits.map((hit, index) => (
++              <button
++                key={hit.id}
++                type="button"
++                className={clsx(styles.item, index === active && styles.itemActive)}
++                onMouseEnter={() => setActive(index)}
++                onClick={() => choose(hit.id)}
++              >
++                <div className={styles.title}>{highlight(hit.title, needle)}</div>
++                {hit.snippet === hit.title ? null : (
++                  <div className={styles.snippet}>{highlight(hit.snippet, needle)}</div>
++                )}
++              </button>
++            ))
++          )}
++        </div>
++      </div>
++    </>
++  )
++}
+diff --git a/src/components/sider/Sider.module.css b/src/components/sider/Sider.module.css
+index 053be7e..0c2a4ce 100644
+--- a/src/components/sider/Sider.module.css
++++ b/src/components/sider/Sider.module.css
+@@ -22,6 +22,13 @@
+   flex-shrink: 0;
+ }
+ 
++.topActions {
++  display: flex;
++  align-items: center;
++  gap: 2px;
++  flex-shrink: 0;
++}
++
+ .appName {
+   min-width: 0;
+   padding-left: 4px;
 diff --git a/src/components/sider/Sider.tsx b/src/components/sider/Sider.tsx
-index 2f3cf56..e756b54 100644
+index 2f3cf56..dc2cb44 100644
 --- a/src/components/sider/Sider.tsx
 +++ b/src/components/sider/Sider.tsx
-@@ -52,7 +52,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -1,7 +1,7 @@
+ import clsx from 'clsx'
+ import { useEffect, useMemo, useState } from 'react'
+ import { useTranslate } from '../../i18n/index.js'
+-import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
++import { IconPanelLeftOutline16, IconSearchOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
+ import { setSiderCollapsed } from '../../services/settings.js'
+ import { groupSessions } from '../../services/chat/sessionGroups.js'
+ import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
+@@ -12,6 +12,7 @@ import { Modal } from '../base/Modal.js'
+ import { showToast } from '../base/toastState.js'
+ import { openSettings } from '../settings/settingsDialogState.js'
+ import { closeMobileSider, useMobileSider } from './mobileSiderState.js'
++import { openSessionSearch } from './sessionSearchState.js'
+ import { SessionItem } from './SessionItem.js'
+ import styles from './Sider.module.css'
+ 
+@@ -52,14 +53,23 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
    return (
      <div className={clsx(styles.sider, mobile && styles.mobile)}>
        <div className={styles.top}>
 -        <div className={styles.appName}>{t('appName')}</div>
+-        <IconButton
+-          size="m"
+-          icon={<IconPanelLeftOutline16 />}
+-          tooltip={t('collapseSiderbarButton')}
+-          tooltipPlacement="bottom"
+-          onClick={() => (mobile ? closeMobileSider() : setSiderCollapsed(true))}
+-        />
 +        <div className={styles.appName}><img src="/webchat/brand-mark.svg" alt="deepseek" style={{ height: 20, width: 'auto', display: 'block' }} /></div>
-         <IconButton
-           size="m"
-           icon={<IconPanelLeftOutline16 />}
++        <div className={styles.topActions}>
++          <IconButton
++            size="m"
++            icon={<IconSearchOutline16 />}
++            tooltip={t('searchSessionsButton')}
++            tooltipPlacement="bottom"
++            onClick={() => openSessionSearch()}
++          />
++          <IconButton
++            size="m"
++            icon={<IconPanelLeftOutline16 />}
++            tooltip={t('collapseSiderbarButton')}
++            tooltipPlacement="bottom"
++            onClick={() => (mobile ? closeMobileSider() : setSiderCollapsed(true))}
++          />
++        </div>
+       </div>
+       <button
+         type="button"
+diff --git a/src/components/sider/sessionSearchState.ts b/src/components/sider/sessionSearchState.ts
+new file mode 100644
+index 0000000..3fe9dca
+--- /dev/null
++++ b/src/components/sider/sessionSearchState.ts
+@@ -0,0 +1,15 @@
++import { create } from 'zustand'
++
++/** 会话搜索浮层的开关与关键词；与列表数据分开，避免每次输入重渲染整个侧栏。 */
++type SessionSearchState = {
++  open: boolean
++  query: string
++}
++
++export const useSessionSearch = create<SessionSearchState>(() => ({ open: false, query: '' }))
++
++export const openSessionSearch = () => useSessionSearch.setState({ open: true })
++
++export const closeSessionSearch = () => useSessionSearch.setState({ open: false, query: '' })
++
++export const setSessionSearchQuery = (query: string) => useSessionSearch.setState({ query })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..06b00d7 100644
+index 2d49027..5636dc7 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
-@@ -14,7 +14,7 @@ export const en = {
+@@ -5,6 +5,9 @@ export const en = {
+   contentCaveat: 'AI-generated, for reference only',
+   expandSiderbarButton: 'Open sidebar',
+   collapseSiderbarButton: 'Close sidebar',
++  searchSessionsButton: 'Search chats',
++  searchSessionsPlaceholder: 'Search titles and messages',
++  searchSessionsNoResult: 'No matching chats',
+   newChat: 'New chat',
+   untitledChat: 'New chat',
+   sessionLoading: 'Loading chats...',
+@@ -14,7 +17,7 @@ export const en = {
      'Chats or attachments have not been saved locally. Retry before closing this page.',
    sessionDeleteFailed: 'Unable to delete this chat. Please try again.',
    settings: 'Settings',
@@ -58,10 +471,20 @@ index 2d49027..06b00d7 100644
    deleteSessionWithFilesDescription:
      'This chat and its uploaded files will be permanently deleted and cannot be recovered. Delete this chat?',
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..35da16d 100644
+index d99f058..91a9a2d 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
-@@ -11,7 +11,7 @@ export const zh = {
+@@ -3,6 +3,9 @@ export const zh = {
+   contentCaveat: '内容由 AI 生成，请仔细甄别',
+   expandSiderbarButton: '打开边栏',
+   collapseSiderbarButton: '收起边栏',
++  searchSessionsButton: '搜索对话',
++  searchSessionsPlaceholder: '搜索标题或内容',
++  searchSessionsNoResult: '没有匹配的对话',
+   newChat: '开启新对话',
+   untitledChat: '新对话',
+   sessionLoading: '正在加载对话...',
+@@ -11,7 +14,7 @@ export const zh = {
    sessionSaveFailed: '对话或附件尚未保存到本机，关闭页面可能丢失，请重试',
    sessionDeleteFailed: '删除对话失败，请重试',
    settings: '设置',

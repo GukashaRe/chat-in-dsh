@@ -19,6 +19,7 @@ Push-Location $vendor
 try {
   git checkout $upstream
   git checkout -- .
+  git clean -fd
   git apply $patch
   pnpm install
   $env:NODE_ENV = 'production'
