@@ -934,11 +934,77 @@ index 7b90b33..0cea017 100644
 +  border-color: var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
 +}
 \ No newline at end of file
+diff --git a/src/components/messages/AssistantMessage.module.css b/src/components/messages/AssistantMessage.module.css
+index b620d69..3590c69 100644
+--- a/src/components/messages/AssistantMessage.module.css
++++ b/src/components/messages/AssistantMessage.module.css
+@@ -81,6 +81,28 @@
+   }
+ }
+ 
++/* 上下文超长：在回答位置给出引导卡片，不展示服务端原始报错 */
++.contextLimit {
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  box-sizing: border-box;
++  width: fit-content;
++  max-width: 100%;
++  margin-top: 8px;
++  padding: 14px 16px 16px;
++  gap: 12px;
++  border: 1px solid var(--dsw-alias-border-l2);
++  border-radius: 12px;
++  background-color: var(--dsw-alias-bg-layer-2);
++}
++
++.contextLimitText {
++  color: var(--dsw-alias-label-primary);
++  font-size: 14px;
++  line-height: 22px;
++}
++
+ .bottom {
+   position: relative;
+   left: -6px;
+diff --git a/src/components/messages/AssistantMessage.module.css.d.ts b/src/components/messages/AssistantMessage.module.css.d.ts
+index 3b696e6..029479b 100644
+--- a/src/components/messages/AssistantMessage.module.css.d.ts
++++ b/src/components/messages/AssistantMessage.module.css.d.ts
+@@ -6,6 +6,8 @@ declare const styles: {
+   readonly "fading": string;
+   readonly "notice": string;
+   readonly "noticeAction": string;
++  readonly "contextLimit": string;
++  readonly "contextLimitText": string;
+   readonly "bottom": string;
+   readonly "alwaysShow": string;
+   readonly "continueButton": string;
 diff --git a/src/components/messages/AssistantMessage.tsx b/src/components/messages/AssistantMessage.tsx
-index cfeb9e0..8e60dd2 100644
+index cfeb9e0..ecda249 100644
 --- a/src/components/messages/AssistantMessage.tsx
 +++ b/src/components/messages/AssistantMessage.tsx
-@@ -57,7 +57,7 @@ export const AssistantMessage = memo(function AssistantMessage({
+@@ -4,7 +4,7 @@ import { memo } from 'react'
+ import { IconRefreshOutline16, IconWarningOutline16 } from '../base/icons.js'
+ import { describeReply } from '../../services/chat/describe.js'
+ import { canContinueReply } from '../../services/chat/reply.js'
+-import { continueReply, regenerateReply } from '../../services/chat/store.js'
++import { continueReply, newChat, regenerateReply } from '../../services/chat/store.js'
+ import { stopReadAloud } from '../../services/speech/readAloud.js'
+ import type { AssistantMessage as AssistantMessageType } from '../../services/chat/types.js'
+ import { openSettings } from '../settings/settingsDialogState.js'
+@@ -46,7 +46,9 @@ export const AssistantMessage = memo(function AssistantMessage({
+   const t = useTranslate()
+   const view = useReplyView(message, streaming)
+   const panelEntry = useSearchPanel((state) => state.entry)
+-  const notice = streaming ? null : describeReply(message)
++  // 上下文超长由专用提示卡片说明，不展示服务端返回的原始英文报错。
++  const contextExceeded = message.contextExceeded === true
++  const notice = streaming || contextExceeded ? null : describeReply(message)
+   // 安全拒绝：已下发的思考与正文按协议丢弃，只显示模板答复。
+   const refused = message.stopReason === 'refusal'
+   const answer = refused ? null : view.answer
+@@ -57,7 +59,7 @@ export const AssistantMessage = memo(function AssistantMessage({
    const waiting = streaming && view.steps.length === 0 && !view.answer && !message.thinking
    const summaryEntry = `${message.id}-summary`
    return (
@@ -947,6 +1013,66 @@ index cfeb9e0..8e60dd2 100644
        {refused ? null : (
          <ReplyArea
            message={message}
+@@ -83,6 +85,14 @@ export const AssistantMessage = memo(function AssistantMessage({
+           ))}
+         </div>
+       ) : null}
++      {contextExceeded ? (
++        <div className={styles.contextLimit}>
++          <span className={styles.contextLimitText}>{t('contextLengthExceeded')}</span>
++          <Button size="s" onClick={newChat}>
++            {t('newChat')}
++          </Button>
++        </div>
++      ) : null}
+       {notice?.presentation === 'response' ? (
+         <Markdown
+           className="ds-assistant-message-main-content"
+@@ -138,25 +148,27 @@ export const AssistantMessage = memo(function AssistantMessage({
+           </span>
+         </div>
+       ) : null}
+-      {streaming ? null : (
++      {streaming || (contextExceeded && versions.ids.length <= 1) ? null : (
+         <div className={styles.bottom}>
+           <BranchSwitcher versions={versions} disabled={busy} onSelect={onSelectVersion} />
+-          <div className={clsx(styles.actions, isLast && styles.alwaysShow)}>
+-            {copyText ? <CopyButton text={copyText} /> : null}
+-            {responseText && !refused ? (
+-              <ReadAloudButton messageId={message.id} text={responseText} />
+-            ) : null}
+-            <IconButton
+-              icon={<IconRefreshOutline16 />}
+-              tooltip={t('regenerate')}
+-              tooltipPlacement="bottom"
+-              disabled={busy || refused}
+-              onClick={() => {
+-                stopReadAloud()
+-                regenerateReply(sessionId, message.id)
+-              }}
+-            />
+-          </div>
++          {contextExceeded ? null : (
++            <div className={clsx(styles.actions, isLast && styles.alwaysShow)}>
++              {copyText ? <CopyButton text={copyText} /> : null}
++              {responseText && !refused ? (
++                <ReadAloudButton messageId={message.id} text={responseText} />
++              ) : null}
++              <IconButton
++                icon={<IconRefreshOutline16 />}
++                tooltip={t('regenerate')}
++                tooltipPlacement="bottom"
++                disabled={busy || refused}
++                onClick={() => {
++                  stopReadAloud()
++                  regenerateReply(sessionId, message.id)
++                }}
++              />
++            </div>
++          )}
+           {isLast && canContinueReply(message) ? (
+             <Button
+               variant="outlined"
 diff --git a/src/components/messages/MessageList.module.css b/src/components/messages/MessageList.module.css
 index 31f7b73..6e876f8 100644
 --- a/src/components/messages/MessageList.module.css
@@ -3305,7 +3431,7 @@ index 0000000..77baab0
 +
 +export const consumeScrollTarget = () => useSessionSearch.setState({ pending: null })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..16ba2e8 100644
+index 2d49027..692202d 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,10 @@ export const en = {
@@ -3368,7 +3494,27 @@ index 2d49027..16ba2e8 100644
    mermaidDiagram: 'Diagram',
    mermaidCode: 'Code',
    mermaidEmpty: 'This diagram is empty.',
-@@ -155,6 +180,10 @@ export const en = {
+@@ -69,11 +94,19 @@ export const en = {
+   toolFindFailTooltip: 'No related content found',
+   readingLink: 'Reading',
+   commonNetworkErrorToast: 'Network Error. Please check your network status.',
++  replyDshLoginRequired: 'Not signed in to DeepSeek. Sign in to your DeepSeek account in DSH first.',
++  replyDshLoginExpired: 'Your DeepSeek sign-in has expired. Sign in again in DSH.',
+   replyInvalidApiKey:
+     'The API Key is invalid or has been deleted. Please replace it and try again.',
+   replyInsufficientBalance: 'Insufficient account balance. Please top up and try again.',
+   replyRateLimited: 'Too many requests. Please try again later.',
++  completionRateLimitReachedToast: 'You are sending messages too frequently. Please wait a moment before sending again.',
++  completionPromptTooLongToast: 'The message you sent is too long. Please modify it and resend.',
++  completionServerErrorToast: 'Server is temporarily unavailable.',
++  hintInvalidParams: 'Send failed. Invalid request.',
++  hintFallback: 'Send failed. Try again later.',
+   completionServerBusyToast: 'Server busy, please try again later.',
++  contextLengthExceeded: 'Conversation length limit reached. Start a new chat.',
+   unknownError: 'Unknown error',
+   replyRefused: "Sorry, that's beyond my current scope. Let's talk about something else.",
+   messageThinkDuration: 'Thought for {count} second',
+@@ -155,6 +188,10 @@ export const en = {
    uploadDeleteFiles: 'Delete files',
    dragFileToUpload: 'Drop files here to upload',
    dragFileDesc: 'Up to {count} files, {size} MB each',
@@ -3379,8 +3525,13 @@ index 2d49027..16ba2e8 100644
    voiceInput: 'Voice input',
    voiceInputTimer: 'Recording {seconds}s',
    voiceInputStop: 'Stop recording and transcribe',
+@@ -179,3 +216,4 @@ export const en = {
+   settingsLocaleZhCN: 'Simplified Chinese',
+   settingsLocaleEnUS: 'English',
+ } satisfies Record<keyof typeof zh, string>
++
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..bb6d3a5 100644
+index d99f058..5d1417e 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,10 @@ export const zh = {
@@ -3442,7 +3593,25 @@ index d99f058..bb6d3a5 100644
    mermaidDiagram: '图表',
    mermaidCode: '代码',
    mermaidEmpty: '图表为空',
-@@ -130,7 +155,7 @@ export const zh = {
+@@ -66,9 +91,17 @@ export const zh = {
+   readingLink: '正在阅读',
+   commonNetworkErrorToast: '网络异常，请检查你的网络状况',
+   replyInvalidApiKey: 'API Key 无效或已被删除，请更换后重试',
++  replyDshLoginRequired: '尚未登录 DeepSeek，请先在 DSH 中登录 DeepSeek 账号',
++  replyDshLoginExpired: 'DeepSeek 登录已失效，请在 DSH 中重新登录 DeepSeek 账号',
+   replyInsufficientBalance: '账户余额不足，请充值后重试',
+   replyRateLimited: '请求过于频繁，请稍后再试',
++  completionRateLimitReachedToast: '你发送消息的频率过快，请稍后再发',
++  completionPromptTooLongToast: '你输入的信息过长，请调整后重试',
++  completionServerErrorToast: '当前服务异常，请稍后再试',
++  hintInvalidParams: '消息未能发送，异常请求',
++  hintFallback: '消息未能发送，请稍后重试',
+   completionServerBusyToast: '服务器繁忙，请稍后再试',
++  contextLengthExceeded: '对话长度已达上限，请开启新对话',
+   unknownError: '未知错误',
+   replyRefused: '你好，这个问题我暂时无法回答，让我们换个话题再聊聊吧。',
+   messageThinkDuration: '已思考（用时 {count} 秒）',
+@@ -130,7 +163,7 @@ export const zh = {
      '上传的文件包含暂未支持的文件格式，请转换文件格式后重试。支持 PDF、DOC、XLSX、PPT、图片、文本、代码等。',
    uploadFileStatusFailed: '上传失败',
    uploadRetry: '{message}，点击重试',
@@ -3451,7 +3620,7 @@ index d99f058..bb6d3a5 100644
    deactivatedThinkTooltip: '先思考后回答，解决推理问题',
    thinkingSwitch: '深度思考',
    deactivatedSearchTooltip: '按需搜索网页',
-@@ -147,6 +172,10 @@ export const zh = {
+@@ -147,6 +180,10 @@ export const zh = {
    uploadDeleteFiles: '删除文件',
    dragFileToUpload: '文件拖动到此处即可上传',
    dragFileDesc: '最多 {count} 个，每个 {size}MB',
@@ -3475,6 +3644,83 @@ index 91df5f9..0a812a9 100644
    </head>
    <body>
      <div id="root"></div>
+diff --git a/src/services/api/client.ts b/src/services/api/client.ts
+index d2d2e28..4d933a2 100644
+--- a/src/services/api/client.ts
++++ b/src/services/api/client.ts
+@@ -34,7 +34,9 @@ export class ApiError extends Error {
+   constructor(
+     readonly kind: ApiErrorKind,
+     message: string | TranslationMessage,
+-    readonly status?: number
++    readonly status?: number,
++    /** 服务端错误体里的 error.code，例如 context_length_exceeded；没有时缺省 */
++    readonly code?: string
+   ) {
+     super(typeof message === 'string' ? message : translate(message.key, message.params))
+     this.name = 'ApiError'
+@@ -55,15 +57,17 @@ const readErrorResponse = async (
+ ): Promise<ApiError> => {
+   const text = await response.text().catch(() => '')
+   let message = text || fallback
++  let code: string | undefined
+   try {
+     const body: unknown = JSON.parse(text)
+     if (isErrorBody(body)) {
+       message = body.error.message
++      code = body.error.code ?? undefined
+     }
+   } catch {
+     // 非 JSON 响应体直接展示原文
+   }
+-  return new ApiError(kind, message, response.status)
++  return new ApiError(kind, message, response.status, code)
+ }
+ 
+ export const request = async (url: string, init: RequestInit): Promise<Response> => {
+@@ -170,7 +174,12 @@ export async function* streamMessage(
+       }
+     }
+     if (isErrorBody(payload)) {
+-      throw new ApiError('stream', payload.error.message)
++      throw new ApiError(
++        'stream',
++        payload.error.message,
++        undefined,
++        payload.error.code ?? undefined
++      )
+     }
+     if (eventName === 'error') {
+       throw new ApiError('stream', data)
+diff --git a/src/services/api/errors.ts b/src/services/api/errors.ts
+index e88105c..74cd431 100644
+--- a/src/services/api/errors.ts
++++ b/src/services/api/errors.ts
+@@ -54,6 +54,24 @@ export const isRetryableApiError = (error: unknown): boolean => {
+   )
+ }
+ 
++/** 上下文超长的兜底文案特征；Anthropic 兼容接口的 code 并不总是下发 */
++const CONTEXT_LENGTH_PATTERN = /maximum context length|context length|context_length|too long/i
++
++/**
++ * 对话上下文超过模型窗口：Anthropic 兼容接口通常返回 400（少数网关为 422），
++ * 错误体可能带 code，也可能只有英文 message。官方网页版对这种情况单独提示并引导开启新对话，
++ * 不展示原始报错，也不提供重试。
++ */
++export const isContextLengthExceededError = (error: unknown): boolean => {
++  if (!(error instanceof ApiError) || (error.status !== 400 && error.status !== 422)) {
++    return false
++  }
++  return (
++    error.code?.toLowerCase() === 'context_length_exceeded' ||
++    CONTEXT_LENGTH_PATTERN.test(error.message)
++  )
++}
++
+ /** 服务端判定附件失效的情况：本地有原件时重新上传即可自愈 */
+ export type FileErrorCode = 'fileIdMissing' | 'fileDataMissing' | 'invalidFileId'
+ 
 diff --git a/src/services/chat/db.ts b/src/services/chat/db.ts
 index a1f58ea..4452070 100644
 --- a/src/services/chat/db.ts
@@ -3507,6 +3753,38 @@ index a1f58ea..4452070 100644
  export const deleteSession = async (sessionId: string): Promise<void> => {
    const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
    await Promise.all([
+diff --git a/src/services/chat/describe.ts b/src/services/chat/describe.ts
+index 39ac0fa..20e5377 100644
+--- a/src/services/chat/describe.ts
++++ b/src/services/chat/describe.ts
+@@ -33,15 +33,24 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
+     }
+     switch (classifyStatus(status)) {
+       case 'unauthorized':
+-        return { text: translate('replyInvalidApiKey'), action: 'apiKey' }
++        // 插件没有 API Key 输入：401 一律是 DSH 里的 DeepSeek 账号未登录或登录失效。
++        return {
++          text: /尚未登录/.test(message)
++            ? translate('replyDshLoginRequired')
++            : translate('replyDshLoginExpired'),
++        }
+       case 'insufficientBalance':
+         return { text: translate('replyInsufficientBalance'), action: 'topUp' }
+       case 'rateLimited':
+-        return { text: translate('replyRateLimited') }
++        return { text: translate('completionRateLimitReachedToast') }
++      case 'tooLarge':
++        return { text: translate('completionPromptTooLongToast') }
+       case 'serverBusy':
+         return { text: translate('completionServerBusyToast') }
+       default:
+-        return message ? { text: message } : null
++        // 参数类 400 与无法归类的失败，按官网的通用文案提示，不暴露英文原文。
++        if (status === 400) return { text: translate('hintInvalidParams') }
++        return message ? { text: message } : { text: translate('hintFallback') }
+     }
+   }
+   const template = getTemplateText(reply)
 diff --git a/src/services/chat/drafts.ts b/src/services/chat/drafts.ts
 index 393d7bf..a6504c3 100644
 --- a/src/services/chat/drafts.ts
@@ -3753,10 +4031,24 @@ index 8540bb1..6271eb2 100644
      const key =
        diff <= 0
 diff --git a/src/services/chat/store.ts b/src/services/chat/store.ts
-index 32e74a5..f42022c 100644
+index 32e74a5..d9ff60b 100644
 --- a/src/services/chat/store.ts
 +++ b/src/services/chat/store.ts
-@@ -288,6 +288,28 @@ const settleInterrupted = (session: Session): Session => {
+@@ -2,7 +2,12 @@ import { create } from 'zustand'
+ import { createId } from '../../utils/id.js'
+ import { ApiError, streamMessage } from '../api/client.js'
+ import type { ChatModel, CreateMessageRequest } from '../api/types.js'
+-import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/errors.js'
++import {
++  extractFileIds,
++  getFileErrorCode,
++  isContextLengthExceededError,
++  isRetryableApiError,
++} from '../api/errors.js'
+ import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
+ import { useSettings } from '../settings.js'
+ import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
+@@ -288,6 +293,28 @@ const settleInterrupted = (session: Session): Session => {
    }
  }
  
@@ -3785,7 +4077,7 @@ index 32e74a5..f42022c 100644
  export const initChat = (): Promise<void> => {
    if (get().ready) {
      return Promise.resolve()
-@@ -299,6 +321,7 @@ export const initChat = (): Promise<void> => {
+@@ -299,6 +326,7 @@ export const initChat = (): Promise<void> => {
    set({ initError: false })
    initTask = (async () => {
      try {
@@ -3793,7 +4085,7 @@ index 32e74a5..f42022c 100644
        const summaries = await db.loadSessionSummaries()
        if (epoch === historyEpoch) {
          set({ ready: true, sessions: sortSessions(summaries) })
-@@ -477,6 +500,92 @@ export const renameSession = (id: string, title: string) => {
+@@ -477,6 +505,92 @@ export const renameSession = (id: string, title: string) => {
    }
  }
  
@@ -3886,11 +4178,56 @@ index 32e74a5..f42022c 100644
  /**
   * 删除会话；本地原件仅在没有其他会话引用时清理。远端文件不删：导入、编辑、重新生成都会复用同一个附件，
   * 同一服务端文件可能被多个会话引用，不维护引用计数。
+@@ -1064,12 +1178,26 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+           // 已收到 message_delta 的结束原因，只是缺了结尾的 message_stop
+           reply = settleReply(reply, 'done', Date.now())
+         } else if (error instanceof ApiError) {
+-          reply = settleReply(reply, 'error', Date.now(), {
+-            kind: error.kind,
+-            message: error.message,
+-            status: error.status,
+-            localMessage: error.localMessage,
+-          })
++          if (isContextLengthExceededError(error)) {
++            // 对话上下文超长：和官方网页版一致，只给「开启新对话」引导。
++            // 不保留原始英文报错，也不写 retryable（不进入附件补传/重新生成等重试入口）。
++            reply = {
++              ...settleReply(reply, 'error', Date.now(), {
++                kind: error.kind,
++                message: '',
++                status: error.status,
++                localMessage: { key: 'contextLengthExceeded' },
++              }),
++              contextExceeded: true,
++            }
++          } else {
++            reply = settleReply(reply, 'error', Date.now(), {
++              kind: error.kind,
++              message: error.message,
++              status: error.status,
++              localMessage: error.localMessage,
++            })
++          }
+         } else {
+           reply = settleReply(reply, 'error', Date.now(), {
+             kind: 'protocol',
 diff --git a/src/services/chat/types.ts b/src/services/chat/types.ts
-index e0df097..03d85b4 100644
+index e0df097..f76f67a 100644
 --- a/src/services/chat/types.ts
 +++ b/src/services/chat/types.ts
-@@ -114,10 +114,12 @@ export type Session = {
+@@ -92,6 +92,11 @@ export type AssistantMessage = MessageBranch & {
+   stopDetails?: StopDetails
+   /** 最近一次请求的用量，续写后更新 */
+   usage?: MessageUsage
++  /**
++   * 服务端判定对话上下文超长：只展示引导提示，不展示原始英文报错，也不提供复制、重新生成等重试操作。
++   * 与 error 同时存在，导出时仍能说明失败原因。
++   */
++  contextExceeded?: boolean
+   error?: {
+     /** upload：发送前补传附件失败，请求没有发出 */
+     kind: ApiErrorKind | 'upload'
+@@ -114,10 +119,12 @@ export type Session = {
    messages: Message[]
    /** undefined 表示线性消息列表；null 表示空会话。 */
    rootMessageId?: string | null
@@ -3904,7 +4241,7 @@ index e0df097..03d85b4 100644
  
  /** 显式提取字段，避免将完整会话的消息带进列表。 */
  export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
-@@ -125,4 +127,5 @@ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
+@@ -125,4 +132,5 @@ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
    title: session.title,
    createdAt: session.createdAt,
    updatedAt: session.updatedAt,
