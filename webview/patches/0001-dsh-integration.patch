@@ -119,10 +119,10 @@ index 7fbb107..af18578 100644
      const spaceBelow = window.innerHeight - rect.bottom - offset - VIEWPORT_PADDING
  
 diff --git a/src/components/base/icons.tsx b/src/components/base/icons.tsx
-index 25f10ea..88746ad 100644
+index 25f10ea..1316abc 100644
 --- a/src/components/base/icons.tsx
 +++ b/src/components/base/icons.tsx
-@@ -523,3 +523,55 @@ export const IconToastError16 = () => (
+@@ -523,3 +523,58 @@ export const IconToastError16 = () => (
      />
    </svg>
  )
@@ -170,12 +170,15 @@ index 25f10ea..88746ad 100644
 +    <path d="M13.1265 1.81282L14.1871 2.87348L2.8734 14.1872L1.81274 13.1265L13.1265 1.81282Z" fill="currentColor" />
 +  </svg>
 +)
++
 +export const IconMultiSelectOutline16 = () => (
 +  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-+    <path
-+      d="M13.2764 9.52324C12.5607 9.97754 11.7177 10.242 10.7812 10.242C8.11386 10.2419 5.95042 8.07997 5.9502 5.41289C5.9502 4.48128 6.21453 3.61071 6.67188 2.87285C4.30332 3.4658 2.54992 5.60845 2.5498 8.16093C2.5498 11.1712 4.99103 13.6102 8 13.6102C10.5383 13.6102 12.6709 11.8724 13.2764 9.52324ZM7.05078 5.41289C7.051 7.47224 8.72116 9.1423 10.7812 9.14238C11.9248 9.14238 12.887 8.63397 13.5781 7.8084C13.7266 7.63106 13.9701 7.56547 14.1875 7.64433C14.4049 7.72329 14.5497 7.9297 14.5498 8.16093C14.5498 11.7766 11.6161 14.7098 8 14.7098C4.38402 14.7098 1.4502 11.7792 1.4502 8.16093C1.45033 4.54322 4.3812 1.61015 8 1.61015C8.23027 1.61015 8.43585 1.75352 8.51562 1.96953C8.59536 2.18554 8.53241 2.42829 8.35742 2.57793C7.55573 3.26311 7.05078 4.27876 7.05078 5.41289Z"
-+      fill="currentColor"
-+    />
++    <g transform="translate(0.9 1.4)">
++      <path d="M14.2004 9.73944V11.0402H7.40356V9.73944H14.2004Z" fill="currentColor" />
++      <path d="M14.2004 2.15491V3.45569H7.40356V2.15491H14.2004Z" fill="currentColor" />
++      <path d="M4.31055 10.3903C4.31055 9.61068 3.71825 8.9692 2.95898 8.89221L2.80566 8.8844C1.9742 8.8844 1.2998 9.5588 1.2998 10.3903L1.30762 10.5436C1.37947 11.2522 1.94276 11.8153 2.65137 11.8873L2.80566 11.8951C3.58507 11.895 4.22575 11.3027 4.30273 10.5436L4.31055 10.3903ZM5.61035 10.3903C5.61016 11.9394 4.35481 13.1947 2.80566 13.1949C1.25635 13.1949 0.000196493 11.9395 0 10.3903C0 8.84083 1.25623 7.58459 2.80566 7.58459C4.35493 7.58479 5.61035 8.84095 5.61035 10.3903Z" fill="currentColor" />
++      <path d="M4.31091 2.80566C4.31091 2.02619 3.7185 1.38466 2.95935 1.30762L2.80603 1.2998C1.97463 1.2998 1.30017 1.97426 1.30017 2.80566L1.30798 2.95898C1.37989 3.66756 1.94316 4.23082 2.65173 4.30273L2.80603 4.31055C3.58529 4.3103 4.22608 3.71798 4.3031 2.95898L4.31091 2.80566ZM5.61072 2.80566C5.61046 4.35465 4.35502 5.61009 2.80603 5.61035C1.25682 5.61035 0.000624607 4.35481 0.000366211 2.80566C0.000366211 1.25629 1.25666 0 2.80603 0C4.35518 0.000258397 5.61072 1.25645 5.61072 2.80566Z" fill="currentColor" />
++    </g>
 +  </svg>
 +)
 diff --git a/src/components/markdown/MermaidDiagram.tsx b/src/components/markdown/MermaidDiagram.tsx
@@ -1128,7 +1131,7 @@ index 6ccb2cf..20bf645 100644
 +}
 \ No newline at end of file
 diff --git a/src/components/sider/SessionItem.tsx b/src/components/sider/SessionItem.tsx
-index c50dd62..2643c9c 100644
+index c50dd62..859c46b 100644
 --- a/src/components/sider/SessionItem.tsx
 +++ b/src/components/sider/SessionItem.tsx
 @@ -1,8 +1,8 @@
@@ -1137,18 +1140,19 @@ index c50dd62..2643c9c 100644
  import { useTranslate } from '../../i18n/index.js'
 -import { IconEditOutline16, IconEllipsisOutline16, IconTrashOutline16 } from '../base/icons.js'
 -import { renameSession, selectSession } from '../../services/chat/store.js'
-+import { IconCheckedOutline14, IconEditOutline16, IconEllipsisOutline16, IconPinOutline16, IconTrashOutline16, IconUnpinOutline16 } from '../base/icons.js'
++import { IconCheckedOutline14, IconEditOutline16, IconEllipsisOutline16, IconMultiSelectOutline16, IconPinOutline16, IconTrashOutline16, IconUnpinOutline16 } from '../base/icons.js'
 +import { renameSession, selectSession, togglePinned } from '../../services/chat/store.js'
  import type { SessionSummary } from '../../services/chat/types.js'
  import { IconButton } from '../base/IconButton.js'
  import { Menu } from '../base/Menu.js'
-@@ -13,13 +13,20 @@ export const SessionItem = memo(function SessionItem({
+@@ -13,13 +13,22 @@ export const SessionItem = memo(function SessionItem({
    session,
    active,
    onDelete,
 +  selecting = false,
 +  selected = false,
 +  onToggleSelect,
++  onMultiSelect,
  }: {
    session: SessionSummary
    active: boolean
@@ -1156,6 +1160,7 @@ index c50dd62..2643c9c 100644
 +  selecting?: boolean
 +  selected?: boolean
 +  onToggleSelect?: () => void
++  onMultiSelect?: () => void
  }) {
    const t = useTranslate()
    const [editing, setEditing] = useState(false)
@@ -1163,7 +1168,7 @@ index c50dd62..2643c9c 100644
    const displayTitle = session.title || t('untitledChat')
  
    if (editing) {
-@@ -49,15 +56,26 @@ export const SessionItem = memo(function SessionItem({
+@@ -49,15 +58,26 @@ export const SessionItem = memo(function SessionItem({
  
    return (
      <div
@@ -1191,7 +1196,7 @@ index c50dd62..2643c9c 100644
            options={[
              {
                key: 'rename',
-@@ -65,6 +83,12 @@ export const SessionItem = memo(function SessionItem({
+@@ -65,6 +85,18 @@ export const SessionItem = memo(function SessionItem({
                icon: <IconEditOutline16 />,
                onSelect: () => setEditing(true),
              },
@@ -1201,10 +1206,16 @@ index c50dd62..2643c9c 100644
 +              icon: session.pinned === true ? <IconUnpinOutline16 /> : <IconPinOutline16 />,
 +              onSelect: () => togglePinned(session.id),
 +            },
++            {
++              key: 'multiSelect',
++              label: t('sessionBatchEntryButton'),
++              icon: <IconMultiSelectOutline16 />,
++              onSelect: () => onMultiSelect?.(),
++            },
              {
                key: 'delete',
                label: t('delete'),
-@@ -79,6 +103,7 @@ export const SessionItem = memo(function SessionItem({
+@@ -79,6 +111,7 @@ export const SessionItem = memo(function SessionItem({
            )}
          </Menu>
        </div>
@@ -1964,7 +1975,7 @@ index 053be7e..1458af2 100644
 +}
 \ No newline at end of file
 diff --git a/src/components/sider/Sider.tsx b/src/components/sider/Sider.tsx
-index 2f3cf56..628c56d 100644
+index 2f3cf56..2f1d287 100644
 --- a/src/components/sider/Sider.tsx
 +++ b/src/components/sider/Sider.tsx
 @@ -1,10 +1,10 @@
@@ -1972,7 +1983,7 @@ index 2f3cf56..628c56d 100644
  import { useEffect, useMemo, useState } from 'react'
  import { useTranslate } from '../../i18n/index.js'
 -import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
-+import { IconCloseFilled16, IconMultiSelectOutline16, IconPanelLeftOutline16, IconPinOutline16, IconSearchFilled16, IconSettingsOutline16, IconTrashOutline16, IconUnpinOutline16, NewChatIcon } from '../base/icons.js'
++import { IconCloseFilled16, IconPanelLeftOutline16, IconPinOutline16, IconSearchFilled16, IconSettingsOutline16, IconTrashOutline16, IconUnpinOutline16, NewChatIcon } from '../base/icons.js'
  import { setSiderCollapsed } from '../../services/settings.js'
  import { groupSessions } from '../../services/chat/sessionGroups.js'
 -import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
@@ -2000,7 +2011,7 @@ index 2f3cf56..628c56d 100644
  
    useEffect(() => {
      let timer: ReturnType<typeof setTimeout>
-@@ -49,18 +55,90 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -49,18 +55,83 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
      }
    }, [])
  
@@ -2073,13 +2084,6 @@ index 2f3cf56..628c56d 100644
 +        <div className={styles.topActions}>
 +          <IconButton
 +            size="m"
-+            icon={<IconMultiSelectOutline16 />}
-+            tooltip={t('sessionBatchEntryButton')}
-+            tooltipPlacement="bottom"
-+            onClick={() => setSelecting(true)}
-+          />
-+          <IconButton
-+            size="m"
 +            icon={<IconSearchFilled16 />}
 +            tooltip={t('searchSessionsButton')}
 +            tooltipPlacement="bottom"
@@ -2099,7 +2103,7 @@ index 2f3cf56..628c56d 100644
        <button
          type="button"
          className={styles.newChat}
-@@ -74,6 +152,8 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -74,6 +145,8 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
          </span>
          {t('newChat')}
        </button>
@@ -2108,13 +2112,14 @@ index 2f3cf56..628c56d 100644
        <div className={styles.listWrap}>
          <div className={styles.list}>
            {groups.map((group) => (
-@@ -85,12 +165,39 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -85,12 +158,40 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                    session={session}
                    active={session.id === activeId}
                    onDelete={() => setDeleting(session)}
 +                  selecting={selecting}
 +                  selected={selected.has(session.id)}
 +                  onToggleSelect={() => toggleSelect(session.id)}
++                  onMultiSelect={() => setSelecting(true)}
                  />
                ))}
              </div>
@@ -2148,7 +2153,7 @@ index 2f3cf56..628c56d 100644
        <div className={styles.bottom}>
          <button type="button" className={styles.settings} onClick={() => openSettings('general')}>
            <span className={styles.settingsIcon}>
-@@ -99,6 +206,58 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -99,6 +200,58 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
            <span className={styles.settingsLabel}>{t('settings')}</span>
          </button>
        </div>
