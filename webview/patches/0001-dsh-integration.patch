@@ -482,10 +482,10 @@ index f86d729..b9b592c 100644
    transition: color 0.2s;
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
-index 0000000..fc3be43
+index 0000000..a9c88aa
 --- /dev/null
 +++ b/src/components/messages/TurnRail.module.css
-@@ -0,0 +1,206 @@
+@@ -0,0 +1,205 @@
 +/* 官网 scrollNav 几何：右侧 16px、34px 毛玻璃胶囊；悬停时内部容器展开、最宽 240px。 */
 +.rail {
 +  position: fixed;
@@ -496,6 +496,7 @@ index 0000000..fc3be43
 +  align-items: center;
 +  justify-content: flex-end;
 +  width: 34px;
++  height: 300px;
 +  transform: translateY(-50%);
 +  user-select: none;
 +  transition: all 0.2s;
@@ -576,11 +577,9 @@ index 0000000..fc3be43
 +}
 +
 +.page {
-+  display: flex;
-+  flex-direction: column;
-+  align-items: flex-end;
++  display: block;
 +  box-sizing: border-box;
-+  max-height: 250px;
++  max-height: 270px;
 +  padding: 15px 0 15px 24px;
 +  overflow-y: auto;
 +  overscroll-behavior: contain;
@@ -981,10 +980,10 @@ index e4bc1b5..892e2d4 100644
            size="m"
            tone="primary"
 diff --git a/src/components/sider/SessionItem.module.css b/src/components/sider/SessionItem.module.css
-index 6ccb2cf..20bf645 100644
+index 6ccb2cf..dfb5dd3 100644
 --- a/src/components/sider/SessionItem.module.css
 +++ b/src/components/sider/SessionItem.module.css
-@@ -23,7 +23,34 @@
+@@ -23,7 +23,35 @@
  
      &:hover,
      &.active {
@@ -1002,9 +1001,10 @@ index 6ccb2cf..20bf645 100644
 +  width: 20px;
 +  height: 20px;
 +  margin-right: 8px;
-+  border: 1px solid var(--dsw-alias-border-l2);
++  border: none;
 +  border-radius: 50%;
 +  background: transparent;
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.12);
 +  color: #fff;
 +  transition:
 +    background-color 0.15s,
@@ -1012,15 +1012,15 @@ index 6ccb2cf..20bf645 100644
 +}
 +
 +.checkboxChecked {
-+  border-color: var(--dsw-alias-brand-primary);
 +  background: var(--dsw-alias-brand-primary);
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0);
 +}
 +
 +.action {
          display: flex;
        }
      }
-@@ -39,6 +66,64 @@
+@@ -39,6 +67,66 @@
    line-height: 18px;
  }
  
@@ -1037,9 +1037,10 @@ index 6ccb2cf..20bf645 100644
 +  width: 20px;
 +  height: 20px;
 +  margin-right: 8px;
-+  border: 1px solid var(--dsw-alias-border-l2);
++  border: none;
 +  border-radius: 50%;
 +  background: transparent;
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.12);
 +  color: #fff;
 +  transition:
 +    background-color 0.15s,
@@ -1047,8 +1048,8 @@ index 6ccb2cf..20bf645 100644
 +}
 +
 +.checkboxChecked {
-+  border-color: var(--dsw-alias-brand-primary);
 +  background: var(--dsw-alias-brand-primary);
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0);
 +}
 +
 +.action {
@@ -1068,9 +1069,10 @@ index 6ccb2cf..20bf645 100644
 +  width: 20px;
 +  height: 20px;
 +  margin-right: 8px;
-+  border: 1px solid var(--dsw-alias-border-l2);
++  border: none;
 +  border-radius: 50%;
 +  background: transparent;
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.12);
 +  color: #fff;
 +  transition:
 +    background-color 0.15s,
@@ -1078,14 +1080,14 @@ index 6ccb2cf..20bf645 100644
 +}
 +
 +.checkboxChecked {
-+  border-color: var(--dsw-alias-brand-primary);
 +  background: var(--dsw-alias-brand-primary);
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0);
 +}
 +
  .action {
    display: none;
    flex-shrink: 0;
-@@ -60,7 +145,34 @@
+@@ -60,7 +148,35 @@
  }
  
  @media (hover: none) {
@@ -1103,9 +1105,10 @@ index 6ccb2cf..20bf645 100644
 +  width: 20px;
 +  height: 20px;
 +  margin-right: 8px;
-+  border: 1px solid var(--dsw-alias-border-l2);
++  border: none;
 +  border-radius: 50%;
 +  background: transparent;
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.12);
 +  color: #fff;
 +  transition:
 +    background-color 0.15s,
@@ -1113,15 +1116,15 @@ index 6ccb2cf..20bf645 100644
 +}
 +
 +.checkboxChecked {
-+  border-color: var(--dsw-alias-brand-primary);
 +  background: var(--dsw-alias-brand-primary);
++  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0);
 +}
 +
 +.action {
      display: flex;
    }
  }
-@@ -84,3 +196,8 @@
+@@ -84,3 +200,8 @@
      font-size: 16px;
    }
  }
@@ -1742,7 +1745,7 @@ index 0000000..26d805f
 +  )
 +}
 diff --git a/src/components/sider/Sider.module.css b/src/components/sider/Sider.module.css
-index 053be7e..1458af2 100644
+index 053be7e..35e8c58 100644
 --- a/src/components/sider/Sider.module.css
 +++ b/src/components/sider/Sider.module.css
 @@ -22,6 +22,13 @@
@@ -1885,7 +1888,7 @@ index 053be7e..1458af2 100644
      margin-top: 16px;
    }
  
-@@ -245,3 +362,88 @@
+@@ -245,3 +362,97 @@
      line-height: 22px;
    }
  }
@@ -1974,9 +1977,18 @@ index 053be7e..1458af2 100644
 +.batchDanger {
 +  color: var(--dsw-alias-state-error-primary);
 +}
++
++.listHeader {
++  display: flex;
++  align-items: center;
++  justify-content: flex-end;
++  flex-shrink: 0;
++  min-height: 28px;
++  padding: 0 2px 2px;
++}
 \ No newline at end of file
 diff --git a/src/components/sider/Sider.tsx b/src/components/sider/Sider.tsx
-index 2f3cf56..2f1d287 100644
+index 2f3cf56..24c24c2 100644
 --- a/src/components/sider/Sider.tsx
 +++ b/src/components/sider/Sider.tsx
 @@ -1,10 +1,10 @@
@@ -1984,7 +1996,7 @@ index 2f3cf56..2f1d287 100644
  import { useEffect, useMemo, useState } from 'react'
  import { useTranslate } from '../../i18n/index.js'
 -import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
-+import { IconCloseFilled16, IconPanelLeftOutline16, IconPinOutline16, IconSearchFilled16, IconSettingsOutline16, IconTrashOutline16, IconUnpinOutline16, NewChatIcon } from '../base/icons.js'
++import { IconCloseFilled16, IconMultiSelectOutline16, IconPanelLeftOutline16, IconPinOutline16, IconSearchFilled16, IconSettingsOutline16, IconTrashOutline16, IconUnpinOutline16, NewChatIcon } from '../base/icons.js'
  import { setSiderCollapsed } from '../../services/settings.js'
  import { groupSessions } from '../../services/chat/sessionGroups.js'
 -import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
@@ -2012,10 +2024,14 @@ index 2f3cf56..2f1d287 100644
  
    useEffect(() => {
      let timer: ReturnType<typeof setTimeout>
-@@ -49,18 +55,83 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -49,18 +55,87 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
      }
    }, [])
  
++  const enterSelect = (initialId?: string) => {
++    setSelected(new Set(initialId === undefined ? [] : [initialId]))
++    setSelecting(true)
++  }
 +  const exitSelect = () => {
 +    setSelecting(false)
 +    setSelected(new Set())
@@ -2104,23 +2120,34 @@ index 2f3cf56..2f1d287 100644
        <button
          type="button"
          className={styles.newChat}
-@@ -74,6 +145,8 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -74,6 +149,19 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
          </span>
          {t('newChat')}
        </button>
 +      )}
 +
++      {selecting ? null : (
++        <div className={styles.listHeader}>
++          <IconButton
++            size="s"
++            icon={<IconMultiSelectOutline16 />}
++            tooltip={t('sessionBatchEntryButton')}
++            tooltipPlacement="bottom"
++            onClick={() => enterSelect()}
++          />
++        </div>
++      )}
        <div className={styles.listWrap}>
          <div className={styles.list}>
            {groups.map((group) => (
-@@ -85,12 +158,40 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -85,12 +173,40 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                    session={session}
                    active={session.id === activeId}
                    onDelete={() => setDeleting(session)}
 +                  selecting={selecting}
 +                  selected={selected.has(session.id)}
 +                  onToggleSelect={() => toggleSelect(session.id)}
-+                  onMultiSelect={() => setSelecting(true)}
++                  onMultiSelect={() => enterSelect(session.id)}
                  />
                ))}
              </div>
@@ -2154,7 +2181,7 @@ index 2f3cf56..2f1d287 100644
        <div className={styles.bottom}>
          <button type="button" className={styles.settings} onClick={() => openSettings('general')}>
            <span className={styles.settingsIcon}>
-@@ -99,6 +200,58 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -99,6 +215,58 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
            <span className={styles.settingsLabel}>{t('settings')}</span>
          </button>
        </div>
