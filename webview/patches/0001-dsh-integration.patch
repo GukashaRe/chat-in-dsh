@@ -65,6 +65,30 @@ index d204c0f..1ebe18c 100644
        </div>
        <SettingsDialog />
        <Toast />
+diff --git a/src/components/base/Menu.module.css b/src/components/base/Menu.module.css
+index b38cb19..f88bcfa 100644
+--- a/src/components/base/Menu.module.css
++++ b/src/components/base/Menu.module.css
+@@ -7,6 +7,7 @@
+   z-index: 900;
+   box-sizing: border-box;
+   min-width: 124px;
++  max-width: 280px;
+   padding: 4px;
+   border-radius: 12px;
+   background-color: var(--dsw-specific-menu);
+@@ -35,6 +36,11 @@
+ 
+ .icon {
+   display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++  width: 16px;
++  height: 16px;
+   font-size: 16px;
+ }
+ 
 diff --git a/src/components/base/Menu.tsx b/src/components/base/Menu.tsx
 index 7f02416..12b1c24 100644
 --- a/src/components/base/Menu.tsx
@@ -103,6 +127,64 @@ index 7f02416..12b1c24 100644
                role="menu"
              >
                {options.map((option) => (
+diff --git a/src/components/base/Modal.module.css b/src/components/base/Modal.module.css
+index 6acc4d7..8d6b395 100644
+--- a/src/components/base/Modal.module.css
++++ b/src/components/base/Modal.module.css
+@@ -66,3 +66,22 @@
+   gap: 8px;
+   margin-top: 20px;
+ }
++
++/* 确认框：官网 ds-modal-content 三段式留白（380 宽，置顶 136 高、批量删除 180 高） */
++.content.confirm {
++  padding: 0;
++}
++
++.confirm .header {
++  padding: 20px 24px 12px;
++  margin-bottom: 0;
++}
++
++.confirm .main {
++  padding: 0 24px;
++}
++
++.confirm .footer {
++  padding: 20px 24px 24px;
++  margin-top: 0;
++}
+\ No newline at end of file
+diff --git a/src/components/base/Modal.tsx b/src/components/base/Modal.tsx
+index 73f2a72..05c48ab 100644
+--- a/src/components/base/Modal.tsx
++++ b/src/components/base/Modal.tsx
+@@ -17,6 +17,8 @@ export const Modal = ({
+   closable = false,
+   className,
+   mainClassName,
++  /** confirm：官网确认框的三段式留白 */
++  variant = 'default',
+   onClose,
+ }: {
+   title: ReactNode
+@@ -27,6 +29,7 @@ export const Modal = ({
+   className?: string
+   /** 内容区的 class */
+   mainClassName?: string
++  variant?: 'default' | 'confirm'
+   onClose: () => void
+ }) => {
+   const t = useTranslate()
+@@ -54,7 +57,7 @@ export const Modal = ({
+       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+     >
+       <div
+-        className={clsx(styles.content, className)}
++        className={clsx(styles.content, variant === 'confirm' && styles.confirm, className)}
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby={titleId}
 diff --git a/src/components/base/anchored.ts b/src/components/base/anchored.ts
 index 7fbb107..af18578 100644
 --- a/src/components/base/anchored.ts
@@ -253,6 +335,67 @@ index 25f10ea..7c2ed03 100644
 +  </svg>
 +)
 \ No newline at end of file
+diff --git a/src/components/chatInput/ChatInput.module.css b/src/components/chatInput/ChatInput.module.css
+index c4594f8..92a3698 100644
+--- a/src/components/chatInput/ChatInput.module.css
++++ b/src/components/chatInput/ChatInput.module.css
+@@ -9,7 +9,7 @@
+   font-size: 16px;
+   line-height: var(--line-height);
+   border-radius: 24px;
+-  border: 1px solid var(--dsw-alias-border-l2-darkmode-thin);
++  border: 0.8px solid var(--dsw-alias-border-l2-darkmode-thin);
+   background: var(--dsw-specific-input-major);
+   overflow: hidden;
+ }
+@@ -238,7 +238,6 @@
+ .functionRow {
+   display: flex;
+   align-items: center;
+-  gap: 8px;
+   margin-top: 4px;
+   padding: 12px;
+ }
+@@ -261,15 +260,16 @@
+   align-items: center;
+   justify-content: center;
+   gap: 4px;
++  box-sizing: border-box;
+   height: 34px;
+-  padding: 0 12px;
++  padding: 10px;
+   border-radius: 18px;
+-  border: 1px solid var(--dsw-alias-border-l2);
++  border: 0.8px solid var(--dsw-alias-border-l2);
++  line-height: 24px;
+   background-color: transparent;
+   color: var(--dsw-alias-label-primary);
+   font: inherit;
+   font-size: 13px;
+-  line-height: 20px;
+   font-weight: 500;
+   white-space: nowrap;
+   cursor: pointer;
+@@ -301,7 +301,7 @@
+   display: flex;
+   flex-shrink: 0;
+   align-items: center;
+-  gap: 4px;
++  gap: 10px;
+   margin-left: auto;
+ }
+ 
+@@ -310,9 +310,9 @@
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
++  box-sizing: border-box;
+   width: 34px;
+   height: 34px;
+-  margin-left: 6px;
+   padding: 0;
+   border: none;
+   border-radius: 50%;
 diff --git a/src/components/chatInput/ChatInput.tsx b/src/components/chatInput/ChatInput.tsx
 index 7a66a71..3cc2aea 100644
 --- a/src/components/chatInput/ChatInput.tsx
@@ -1001,10 +1144,10 @@ index 6b8c0e9..293b59c 100644
      </ScrollToBottomContext.Provider>
    )
 diff --git a/src/components/messages/ReplyArea.module.css b/src/components/messages/ReplyArea.module.css
-index f86d729..b9b592c 100644
+index f86d729..95d2ebe 100644
 --- a/src/components/messages/ReplyArea.module.css
 +++ b/src/components/messages/ReplyArea.module.css
-@@ -3,11 +3,17 @@
+@@ -3,11 +3,19 @@
  }
  
  .title {
@@ -1013,7 +1156,9 @@ index f86d729..b9b592c 100644
 +  z-index: 7;
    display: flex;
    align-items: center;
++  width: 100%;
    height: 34px;
++  max-height: 34px;
    margin-bottom: 2px;
    color: var(--dsw-alias-label-secondary);
 +  background-color: var(--dsw-alias-bg-base);
@@ -1022,6 +1167,26 @@ index f86d729..b9b592c 100644
    cursor: pointer;
    user-select: none;
    transition: color 0.2s;
+@@ -30,6 +38,10 @@
+ .titleText {
+   margin-right: 6px;
+   font: var(--dsw-font-markdown-base);
++  display: inline-flex;
++  align-items: center;
++  height: 100%;
++  overflow: hidden;
+ }
+ 
+ .shimmer {
+@@ -314,3 +326,8 @@
+   text-overflow: ellipsis;
+   white-space: nowrap;
+ }
++
++/* 官网片段（思考/工具）除第一个外都有 4px 上间距 */
++.steps > * + * {
++  margin-top: 4px;
++}
 diff --git a/src/components/messages/ReplyArea.tsx b/src/components/messages/ReplyArea.tsx
 index c87f36c..037704a 100644
 --- a/src/components/messages/ReplyArea.tsx
@@ -1860,10 +2025,10 @@ index c50dd62..859c46b 100644
  })
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
-index 0000000..5a506e5
+index 0000000..7c808f7
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.module.css
-@@ -0,0 +1,306 @@
+@@ -0,0 +1,315 @@
 +/* 尺寸与结构对齐官网：660px 宽、72vh 高、结果行最小 67px。 */
 +.overlay {
 +  position: fixed;
@@ -2170,13 +2335,22 @@ index 0000000..5a506e5
 +  color: var(--dsw-alias-label-tertiary);
 +  vertical-align: -2px;
 +}
++
++/* DSH 头像：填满 40px 圆框 */
++.avatarImg {
++  display: block;
++  width: 100%;
++  height: 100%;
++  border-radius: 50%;
++  object-fit: cover;
++}
 \ No newline at end of file
 diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
 new file mode 100644
-index 0000000..aed6dbf
+index 0000000..ed2c284
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.tsx
-@@ -0,0 +1,318 @@
+@@ -0,0 +1,344 @@
 +import { useEffect, useRef, useState } from 'react'
 +import type { KeyboardEvent } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
@@ -2284,6 +2458,26 @@ index 0000000..aed6dbf
 +  const inputRef = useRef<HTMLInputElement>(null)
 +  const listRef = useRef<HTMLDivElement>(null)
 +  const needle = query.trim().toLowerCase()
++  const [userAvatar, setUserAvatar] = useState<string | null>(() => {
++    try {
++      return window.localStorage.getItem('dsh:user-avatar')
++    } catch {
++      return null
++    }
++  })
++
++  useEffect(() => {
++    const onStorage = (event: StorageEvent) => {
++      if (event.key !== 'dsh:user-avatar') return
++      try {
++        setUserAvatar(window.localStorage.getItem('dsh:user-avatar'))
++      } catch {
++        // 存储不可用时保持当前值
++      }
++    }
++    window.addEventListener('storage', onStorage)
++    return () => window.removeEventListener('storage', onStorage)
++  }, [])
 +
 +  useEffect(() => {
 +    if (open) inputRef.current?.focus()
@@ -2469,7 +2663,13 @@ index 0000000..aed6dbf
 +                onClick={() => choose(hit)}
 +              >
 +                <span className={styles.glyph} data-role={hit.role}>
-+                  {hit.kind === 'file' ? <IconFileSolid size={20} /> : hit.role === 'user' ? <UserGlyph /> : <IconAssistantAvatar20 />}
++                  {hit.kind === 'file' ? (
++                    <IconFileSolid size={20} />
++                  ) : hit.role === 'user' ? (
++                    userAvatar !== null ? <img className={styles.avatarImg} src={userAvatar} alt="" /> : <UserGlyph />
++                  ) : (
++                    <IconAssistantAvatar20 />
++                  )}
 +                </span>
 +                <span className={styles.body}>
 +                  <span className={styles.titleRow}>
@@ -2762,7 +2962,7 @@ index 053be7e..86e87dc 100644
 +}
 \ No newline at end of file
 diff --git a/src/components/sider/Sider.tsx b/src/components/sider/Sider.tsx
-index 2f3cf56..bd0f6e8 100644
+index 2f3cf56..c5c4dd5 100644
 --- a/src/components/sider/Sider.tsx
 +++ b/src/components/sider/Sider.tsx
 @@ -1,10 +1,10 @@
@@ -2963,24 +3163,25 @@ index 2f3cf56..bd0f6e8 100644
        <div className={styles.bottom}>
          <button type="button" className={styles.settings} onClick={() => openSettings('general')}>
            <span className={styles.settingsIcon}>
-@@ -99,6 +218,58 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+@@ -99,8 +218,61 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
            <span className={styles.settingsLabel}>{t('settings')}</span>
          </button>
        </div>
 +      )}
 +      {pinConfirmOpen ? (
-+        <Modal
++        <Modal variant="confirm"
 +          title={t(allPinned ? 'sessionBatchUnpinAlert' : 'sessionBatchPinAlert', { count: selected.size })}
 +          onClose={() => {
 +            if (!batchPending) setPinConfirmOpen(false)
 +          }}
 +          footer={
 +            <>
-+              <Button variant="outlined" disabled={batchPending} onClick={() => setPinConfirmOpen(false)}>
++              <Button size="m" variant="outlined" disabled={batchPending} onClick={() => setPinConfirmOpen(false)}>
 +                {t('cancel')}
 +              </Button>
 +              <Button
-+                variant="filled"
++                size="m"
++            variant="primary"
 +                disabled={batchPending}
 +                onClick={() => {
 +                  void runPin().finally(() => setPinConfirmOpen(false))
@@ -2993,14 +3194,14 @@ index 2f3cf56..bd0f6e8 100644
 +        />
 +      ) : null}
 +      {batchDeleteOpen ? (
-+        <Modal
++        <Modal variant="confirm"
 +          title={t('sessionBatchDeleteAlertTitle', { count: selected.size })}
 +          onClose={() => {
 +            if (!batchPending) setBatchDeleteOpen(false)
 +          }}
 +          footer={
 +            <>
-+              <Button variant="outlined" disabled={batchPending} onClick={() => setBatchDeleteOpen(false)}>
++              <Button size="m" variant="outlined" disabled={batchPending} onClick={() => setBatchDeleteOpen(false)}>
 +                {t('cancel')}
 +              </Button>
 +              <Button
@@ -3020,8 +3221,20 @@ index 2f3cf56..bd0f6e8 100644
 +        </Modal>
 +      ) : null}
        {deleting ? (
-         <Modal
+-        <Modal
++        <Modal variant="confirm"
            title={t('deleteSessionModalContentTitle')}
+           onClose={() => {
+             if (!deletePending) {
+@@ -109,7 +281,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
+           }}
+           footer={
+             <>
+-              <Button variant="outlined" disabled={deletePending} onClick={() => setDeleting(null)}>
++              <Button size="m" variant="outlined" disabled={deletePending} onClick={() => setDeleting(null)}>
+                 {t('cancel')}
+               </Button>
+               <Button
 diff --git a/src/components/sider/sessionSearchGlyphs.tsx b/src/components/sider/sessionSearchGlyphs.tsx
 new file mode 100644
 index 0000000..61e0adf
@@ -3076,7 +3289,7 @@ index 0000000..77baab0
 +
 +export const consumeScrollTarget = () => useSessionSearch.setState({ pending: null })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..08ba2db 100644
+index 2d49027..16ba2e8 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,10 @@ export const en = {
@@ -3110,7 +3323,7 @@ index 2d49027..08ba2db 100644
 +  sessionBatchSelectedCount: '{count} chats selected',
 +  sessionBatchPinAlert: 'Pin the selected {count} chats?',
 +  sessionBatchUnpinAlert: 'Unpin the selected {count} chats?',
-+  sessionBatchDeleteAlertTitle: 'Delete the selected {count} chats',
++  sessionBatchDeleteAlertTitle: 'Delete the selected {count} chats?',
 +  sessionBatchDeleteDescription: 'Deleted chats cannot be recovered. Share links from them will be disabled.',
 +  sessionBatchSelected: '{count} selected',
 +  sessionBatchPin: 'Pin',
@@ -3151,7 +3364,7 @@ index 2d49027..08ba2db 100644
    voiceInputTimer: 'Recording {seconds}s',
    voiceInputStop: 'Stop recording and transcribe',
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..f42c96e 100644
+index d99f058..bb6d3a5 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,10 @@ export const zh = {
@@ -3182,9 +3395,9 @@ index d99f058..f42c96e 100644
 +  sessionBatchSelectChatTitle: '选择对话',
 +  sessionBatchEntryButton: '多选',
 +  sessionBatchSelectedCount: '已选择 {count} 个对话',
-+  sessionBatchPinAlert: '将选择的 {count} 个对话置顶？',
-+  sessionBatchUnpinAlert: '将选择的 {count} 个对话取消置顶？',
-+  sessionBatchDeleteAlertTitle: '删除选择的 {count} 个对话',
++  sessionBatchPinAlert: '将选择的 {count} 个对话置顶?',
++  sessionBatchUnpinAlert: '将选择的 {count} 个对话取消置顶?',
++  sessionBatchDeleteAlertTitle: '删除选择的 {count} 个对话?',
 +  sessionBatchDeleteDescription: '删除后，对话将不可恢复，由该对话生成的分享链接也将失效。',
 +  sessionBatchSelected: '已选 {count} 项',
 +  sessionBatchPin: '置顶',

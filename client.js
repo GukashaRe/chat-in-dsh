@@ -29,6 +29,44 @@ window.__ModuleLoader__.load({
         // 非浏览器环境或跨源限制：面板会回退到自身 getUserMedia。
       }
     }
+    // DSH 网页版的账号头像由 shell 自己渲染，没有暴露成 Slot。这里按位置找：
+    // 侧栏左下角、16~64px 的 img，把 src 写进同源 localStorage，面板搜索结果的用户行直接读。
+    const publishUserAvatar = () => {
+      try {
+        const findAvatar = () => {
+          let found = null
+          for (const img of document.querySelectorAll('img')) {
+            const rect = img.getBoundingClientRect()
+            if (rect.width < 16 || rect.width > 64 || rect.height < 16 || rect.height > 64) continue
+            if (rect.left > 320 || rect.top < window.innerHeight - 160) continue
+            const src = img.currentSrc || img.src
+            if (src) found = src
+          }
+          return found
+        }
+        const apply = () => {
+          const src = findAvatar()
+          if (src !== null && window.localStorage.getItem('dsh:user-avatar') !== src) {
+            window.localStorage.setItem('dsh:user-avatar', src)
+          }
+        }
+        apply()
+        if (typeof MutationObserver !== 'function') return undefined
+        let scheduled = false
+        const observer = new MutationObserver(() => {
+          if (scheduled) return
+          scheduled = true
+          setTimeout(() => {
+            scheduled = false
+            apply()
+          }, 200)
+        })
+        observer.observe(document.body, { childList: true, subtree: true })
+        return () => observer.disconnect()
+      } catch (_error) {
+        return undefined
+      }
+    }
     // 导入完成后让面板重新加载一次，好让新会话出现在列表里。
     const importBus = { token: 0, listeners: new Set() }
     const notifyImported = () => {
@@ -87,6 +125,7 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'layout', 'contextMenus'],
       apply(ctx) {
         installMicBridge()
+        const stopAvatar = publishUserAvatar()
 
         ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({
           name: 'main',
@@ -132,6 +171,10 @@ window.__ModuleLoader__.load({
         ctx.effect(() => () => {
           if (window.__dshPanelMic !== undefined) delete window.__dshPanelMic
         }, 'webchat.mic-bridge')
+
+        ctx.effect(() => () => {
+          stopAvatar?.()
+        }, 'webchat.avatar')
       },
     }
   },

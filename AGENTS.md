@@ -63,6 +63,11 @@ pwsh scripts/build-webview.ps1     # 克隆上游、打补丁、构建、同步 
   麦克风：DSH 桌面只给主框架授权（`lib/main.js` 的 `installMicrophonePermissions` 检查 `isMainFrame`），
   iframe 直接调用会被拒绝。`client.js` 在主框架挂 `window.__dshPanelMic`，面板 `recorder.ts` 优先通过同源 
   `window.top` 取流，取不到才回退自身 getUserMedia。
+- 工具栏/思考标题/菜单（按官网实测 JSON 对齐）：输入框 776×124、工具栏高 58、开关 92×34（padding 10、行高 24）、
+  发送 34 圆形；思考标题 752×34、sticky top 0/z 7、片段间距 4；会话菜单 4 项 124×168、行高 40；
+  确认框宽 380（置顶高 136、批量删除高约 180），按钮 72×36，主按钮品牌蓝。
+- 头像：DSH 壳层账号头像由 client.js 按位置找到后写入 localStorage（dsh:user-avatar），
+  搜索结果用户行读它显示 40px 圆头像；取不到时回退人物图标。
 - 多选：顶栏「多选」图标进入；选择模式顶栏换成「选择对话 / 已选择 N 项」+ 圆形关闭按钮；
   行前复选框不切换当前会话；底部 62px 操作条提供置顶/取消置顶与删除，均先弹确认框；
   置顶与删除只影响选中项，刷新后状态正确。
