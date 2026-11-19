@@ -1609,49 +1609,62 @@ index 0b88d12..cfdaf43 100644
 +  z-index: auto;
 +}
 diff --git a/src/components/session/Welcome.module.css b/src/components/session/Welcome.module.css
-index c7f5d3d..dc0027d 100644
+index c7f5d3d..10bf29d 100644
 --- a/src/components/session/Welcome.module.css
 +++ b/src/components/session/Welcome.module.css
-@@ -16,6 +16,13 @@
+@@ -16,11 +16,21 @@
    padding: 0 32px 64px;
  }
  
 +.whale {
-+  display: flex;
-+  justify-content: center;
-+  margin-bottom: 12px;
-+  color: var(--dsw-alias-brand-text);
++  display: block;
++  flex-shrink: 0;
++  width: 34px;
++  height: 25px;
++  margin-right: 10px;
++  color: var(--dsw-alias-brand-primary);
 +}
 +
  .greeting {
    display: flex;
    align-items: center;
-@@ -29,7 +36,14 @@
+   justify-content: center;
+-  margin-bottom: 21px;
++  height: 32px;
++  margin: 0 0 21px;
+   font-size: 24px;
+   line-height: 32px;
+   font-weight: 600;
+@@ -29,7 +39,16 @@
  }
  
  @media (max-width: 439px) {
 -  .greeting {
 +  .whale {
-+  display: flex;
-+  justify-content: center;
-+  margin-bottom: 12px;
-+  color: var(--dsw-alias-brand-text);
++  display: block;
++  flex-shrink: 0;
++  width: 34px;
++  height: 25px;
++  margin-right: 10px;
++  color: var(--dsw-alias-brand-primary);
 +}
 +
 +.greeting {
      font-size: 20px;
      line-height: 28px;
      font-weight: 500;
-@@ -50,7 +64,14 @@
+@@ -50,7 +69,16 @@
      padding: 0 16px env(safe-area-inset-bottom);
    }
  
 -  .greeting {
 +  .whale {
-+  display: flex;
-+  justify-content: center;
-+  margin-bottom: 12px;
-+  color: var(--dsw-alias-brand-text);
++  display: block;
++  flex-shrink: 0;
++  width: 34px;
++  height: 25px;
++  margin-right: 10px;
++  color: var(--dsw-alias-brand-primary);
 +}
 +
 +.greeting {
@@ -1659,10 +1672,10 @@ index c7f5d3d..dc0027d 100644
      margin: auto 0;
    }
 diff --git a/src/components/session/Welcome.tsx b/src/components/session/Welcome.tsx
-index 95f2729..c0ec8ee 100644
+index 95f2729..a69f629 100644
 --- a/src/components/session/Welcome.tsx
 +++ b/src/components/session/Welcome.tsx
-@@ -1,18 +1,23 @@
+@@ -1,18 +1,25 @@
  import { useIsMobile } from '../../app/viewport.js'
 +import { useState } from 'react'
  import { useTranslate } from '../../i18n/index.js'
@@ -1682,8 +1695,10 @@ index 95f2729..c0ec8ee 100644
        {isMobile ? <MobileHeader /> : null}
        <div className={styles.welcome}>
 -        <div className={styles.greeting}>{t('welcomeMessageChat250808')}</div>
-+        <div className={styles.whale}><WelcomeWhale /></div>
-+        <div className={styles.greeting}>{greeting}</div>
++        <div className={styles.greeting}>
++          <span className={styles.whale}><WelcomeWhale /></span>
++          {greeting}
++        </div>
          <ChatInput sessionId={null} />
          {isMobile ? <div className={styles.caveat}>{t('contentCaveat')}</div> : null}
        </div>
