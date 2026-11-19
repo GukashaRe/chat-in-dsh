@@ -31,20 +31,83 @@ index d204c0f..db67a72 100644
        </div>
        <SettingsDialog />
        <Toast />
+diff --git a/src/components/base/Menu.tsx b/src/components/base/Menu.tsx
+index 7f02416..12b1c24 100644
+--- a/src/components/base/Menu.tsx
++++ b/src/components/base/Menu.tsx
+@@ -1,5 +1,5 @@
+ import clsx from 'clsx'
+-import { useState, type ReactNode } from 'react'
++import { useEffect, useState, type ReactNode } from 'react'
+ import { createPortal } from 'react-dom'
+ import { useAnchoredPosition, useDismiss } from './anchored.js'
+ import styles from './Menu.module.css'
+@@ -16,12 +16,17 @@ export type MenuOption = {
+ export const Menu = ({
+   options,
+   children,
++  onOpenChange,
+ }: {
+   options: MenuOption[]
++  onOpenChange?: (open: boolean) => void
+   children: (props: { open: boolean; toggle: () => void }) => ReactNode
+ }) => {
+   const [open, setOpen] = useState(false)
+   const close = () => setOpen(false)
++  useEffect(() => {
++    onOpenChange?.(open)
++  }, [onOpenChange, open])
+   // 左侧对齐并再左移 5px，让菜单文字与触发元素图标对齐
+   const { anchorRef, floatingRef, position } = useAnchoredPosition<HTMLSpanElement, HTMLDivElement>(
+     open,
+@@ -39,7 +44,7 @@ export const Menu = ({
+             <div
+               ref={floatingRef}
+               className={styles.menu}
+-              style={position ?? undefined}
++              style={{ ...(position ?? { top: 0, left: 0 }), visibility: position ? 'visible' : 'hidden' }}
+               role="menu"
+             >
+               {options.map((option) => (
+diff --git a/src/components/base/anchored.ts b/src/components/base/anchored.ts
+index 7fbb107..af18578 100644
+--- a/src/components/base/anchored.ts
++++ b/src/components/base/anchored.ts
+@@ -129,6 +129,10 @@ export const useAnchoredPosition = <T extends HTMLElement, F extends HTMLElement
+       return
+     }
+     const rect = anchor.getBoundingClientRect()
++    // 触发元素暂时隐藏（display:none）时测到空矩形，保持上一次位置，避免浮层跳到左上角
++    if (rect.width === 0 && rect.height === 0) {
++      return
++    }
+     const spaceAbove = rect.top - offset - VIEWPORT_PADDING
+     const spaceBelow = window.innerHeight - rect.bottom - offset - VIEWPORT_PADDING
+ 
 diff --git a/src/components/base/icons.tsx b/src/components/base/icons.tsx
-index 25f10ea..8f5002c 100644
+index 25f10ea..1a38319 100644
 --- a/src/components/base/icons.tsx
 +++ b/src/components/base/icons.tsx
-@@ -523,3 +523,11 @@ export const IconToastError16 = () => (
+@@ -523,3 +523,21 @@ export const IconToastError16 = () => (
      />
    </svg>
  )
 +export const IconPinOutline16 = () => (
-+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-+    <path
-+      d="M10.2 1.5 14.5 5.8l-1.4.4-2 2c.5 1.3.2 2.6-.8 3.6l-2.3-2.3-3.9 3.9-.9.3.3-.9 3.9-3.9-2.3-2.3c1-1 2.3-1.3 3.6-.8l2-2 .4-1.4Z"
-+      fill="currentColor"
-+    />
++  <svg
++    width={16}
++    height={16}
++    viewBox="0 0 24 24"
++    fill="none"
++    stroke="currentColor"
++    strokeWidth={2.2}
++    strokeLinecap="round"
++    strokeLinejoin="round"
++    xmlns="http://www.w3.org/2000/svg"
++  >
++    <g transform="translate(12 12) rotate(45) scale(0.85) translate(-12 -12)">
++      <path d="M12 17v5" />
++      <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
++    </g>
 +  </svg>
 +)
 diff --git a/src/components/messages/MessageList.module.css b/src/components/messages/MessageList.module.css
@@ -368,8 +431,23 @@ index a74b591..643453b 100644
              </>
            )}
          </div>
+diff --git a/src/components/sider/SessionItem.module.css b/src/components/sider/SessionItem.module.css
+index 6ccb2cf..38a1174 100644
+--- a/src/components/sider/SessionItem.module.css
++++ b/src/components/sider/SessionItem.module.css
+@@ -39,6 +39,10 @@
+   line-height: 18px;
+ }
+ 
++.menuOpen .action {
++  display: flex;
++}
++
+ .action {
+   display: none;
+   flex-shrink: 0;
 diff --git a/src/components/sider/SessionItem.tsx b/src/components/sider/SessionItem.tsx
-index c50dd62..41bbe8a 100644
+index c50dd62..61f2d8f 100644
 --- a/src/components/sider/SessionItem.tsx
 +++ b/src/components/sider/SessionItem.tsx
 @@ -1,8 +1,8 @@
@@ -383,9 +461,28 @@ index c50dd62..41bbe8a 100644
  import type { SessionSummary } from '../../services/chat/types.js'
  import { IconButton } from '../base/IconButton.js'
  import { Menu } from '../base/Menu.js'
-@@ -59,6 +59,12 @@ export const SessionItem = memo(function SessionItem({
+@@ -20,6 +20,7 @@ export const SessionItem = memo(function SessionItem({
+ }) {
+   const t = useTranslate()
+   const [editing, setEditing] = useState(false)
++  const [menuOpen, setMenuOpen] = useState(false)
+   const displayTitle = session.title || t('untitledChat')
+ 
+   if (editing) {
+@@ -49,7 +50,7 @@ export const SessionItem = memo(function SessionItem({
+ 
+   return (
+     <div
+-      className={clsx(styles.item, active && styles.active)}
++      className={clsx(styles.item, active && styles.active, menuOpen && styles.menuOpen)}
+       onClick={() => {
+         selectSession(session.id)
+         closeMobileSider()
+@@ -58,7 +59,14 @@ export const SessionItem = memo(function SessionItem({
+       <div className={styles.title}>{displayTitle}</div>
        <div className={styles.action} onClick={(event) => event.stopPropagation()}>
          <Menu
++          onOpenChange={setMenuOpen}
            options={[
 +            {
 +              key: 'pin',
