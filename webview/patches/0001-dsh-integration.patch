@@ -31,6 +31,22 @@ index d204c0f..db67a72 100644
        </div>
        <SettingsDialog />
        <Toast />
+diff --git a/src/components/base/icons.tsx b/src/components/base/icons.tsx
+index 25f10ea..8f5002c 100644
+--- a/src/components/base/icons.tsx
++++ b/src/components/base/icons.tsx
+@@ -523,3 +523,11 @@ export const IconToastError16 = () => (
+     />
+   </svg>
+ )
++export const IconPinOutline16 = () => (
++  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
++    <path
++      d="M10.2 1.5 14.5 5.8l-1.4.4-2 2c.5 1.3.2 2.6-.8 3.6l-2.3-2.3-3.9 3.9-.9.3.3-.9 3.9-3.9-2.3-2.3c1-1 2.3-1.3 3.6-.8l2-2 .4-1.4Z"
++      fill="currentColor"
++    />
++  </svg>
++)
 diff --git a/src/components/messages/MessageList.module.css b/src/components/messages/MessageList.module.css
 index 31f7b73..dfe1ad1 100644
 --- a/src/components/messages/MessageList.module.css
@@ -352,6 +368,34 @@ index a74b591..643453b 100644
              </>
            )}
          </div>
+diff --git a/src/components/sider/SessionItem.tsx b/src/components/sider/SessionItem.tsx
+index c50dd62..41bbe8a 100644
+--- a/src/components/sider/SessionItem.tsx
++++ b/src/components/sider/SessionItem.tsx
+@@ -1,8 +1,8 @@
+ import clsx from 'clsx'
+ import { memo, useState } from 'react'
+ import { useTranslate } from '../../i18n/index.js'
+-import { IconEditOutline16, IconEllipsisOutline16, IconTrashOutline16 } from '../base/icons.js'
+-import { renameSession, selectSession } from '../../services/chat/store.js'
++import { IconEditOutline16, IconEllipsisOutline16, IconPinOutline16, IconTrashOutline16 } from '../base/icons.js'
++import { renameSession, selectSession, togglePinned } from '../../services/chat/store.js'
+ import type { SessionSummary } from '../../services/chat/types.js'
+ import { IconButton } from '../base/IconButton.js'
+ import { Menu } from '../base/Menu.js'
+@@ -59,6 +59,12 @@ export const SessionItem = memo(function SessionItem({
+       <div className={styles.action} onClick={(event) => event.stopPropagation()}>
+         <Menu
+           options={[
++            {
++              key: 'pin',
++              label: session.pinned === true ? t('sessionItemMenuUnpinOption') : t('sessionItemMenuPinOption'),
++              icon: <IconPinOutline16 />,
++              onSelect: () => togglePinned(session.id),
++            },
+             {
+               key: 'rename',
+               label: t('sessionItemMenuRenameOption'),
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
 index 0000000..d759517
@@ -855,7 +899,7 @@ index 0000000..3fe9dca
 +
 +export const setSessionSearchQuery = (query: string) => useSessionSearch.setState({ query })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..59655ef 100644
+index 2d49027..869d9c9 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,9 @@ export const en = {
@@ -868,7 +912,7 @@ index 2d49027..59655ef 100644
    newChat: 'New chat',
    untitledChat: 'New chat',
    sessionLoading: 'Loading chats...',
-@@ -14,7 +17,7 @@ export const en = {
+@@ -14,12 +17,14 @@ export const en = {
      'Chats or attachments have not been saved locally. Retry before closing this page.',
    sessionDeleteFailed: 'Unable to delete this chat. Please try again.',
    settings: 'Settings',
@@ -877,8 +921,23 @@ index 2d49027..59655ef 100644
    deleteSessionModalContentTitle: 'Delete chat?',
    deleteSessionWithFilesDescription:
      'This chat and its uploaded files will be permanently deleted and cannot be recovered. Delete this chat?',
+   cancel: 'Cancel',
+   delete: 'Delete',
++  sessionItemMenuPinOption: 'Pin to top',
++  sessionItemMenuUnpinOption: 'Unpin',
+   sessionItemMenuRenameOption: 'Rename',
+   more: 'More',
+   close: 'Close',
+@@ -27,6 +32,7 @@ export const en = {
+   sessionHistoryTimelineLabelYesterday: 'Yesterday',
+   sessionHistoryTimelineLabel7days: '7 Days',
+   sessionHistoryTimelineLabel30days: '30 Days',
++  sessionHistoryTimelineLabelPinned: 'Pinned',
+   copy: 'Copy',
+   copied: 'Copied',
+   copyFailed: 'Copy failed. Please long-press or select the text to copy.',
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..4efdf7f 100644
+index d99f058..758e26d 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,9 @@ export const zh = {
@@ -891,7 +950,7 @@ index d99f058..4efdf7f 100644
    newChat: '开启新对话',
    untitledChat: '新对话',
    sessionLoading: '正在加载对话...',
-@@ -11,7 +14,7 @@ export const zh = {
+@@ -11,11 +14,13 @@ export const zh = {
    sessionSaveFailed: '对话或附件尚未保存到本机，关闭页面可能丢失，请重试',
    sessionDeleteFailed: '删除对话失败，请重试',
    settings: '设置',
@@ -900,6 +959,20 @@ index d99f058..4efdf7f 100644
    deleteSessionModalContentTitle: '永久删除对话',
    deleteSessionWithFilesDescription: '删除后，该对话及其中上传的文件将不可恢复。确认删除吗？',
    cancel: '取消',
+   delete: '删除',
++  sessionItemMenuPinOption: '置顶',
++  sessionItemMenuUnpinOption: '取消置顶',
+   sessionItemMenuRenameOption: '重命名',
+   more: '更多',
+   close: '关闭',
+@@ -23,6 +28,7 @@ export const zh = {
+   sessionHistoryTimelineLabelYesterday: '昨天',
+   sessionHistoryTimelineLabel7days: '7 天内',
+   sessionHistoryTimelineLabel30days: '30 天内',
++  sessionHistoryTimelineLabelPinned: '置顶',
+   copy: '复制',
+   copied: '已复制',
+   copyFailed: '复制失败，请长按或选中文本后复制',
 diff --git a/src/index.html b/src/index.html
 index 91df5f9..0a812a9 100644
 --- a/src/index.html
@@ -913,8 +986,57 @@ index 91df5f9..0a812a9 100644
    </head>
    <body>
      <div id="root"></div>
+diff --git a/src/services/chat/db.ts b/src/services/chat/db.ts
+index a1f58ea..4452070 100644
+--- a/src/services/chat/db.ts
++++ b/src/services/chat/db.ts
+@@ -124,6 +124,27 @@ export const renameSession = async (id: string, title: string): Promise<void> =>
+ }
+ 
+ /** 删除会话，仅清理已无会话引用的本地原件；远端文件不删。 */
++/** 更新会话的置顶标记；会话不在本地记录时忽略。 */
++export const setPinned = async (id: string, pinned: boolean): Promise<void> => {
++  const tx = (await getDB()).transaction(['sessions', 'sessionSummaries'], 'readwrite')
++  await Promise.all([
++    (async () => {
++      try {
++        const sessions = tx.objectStore('sessions')
++        const session = await sessions.get(id)
++        if (session) {
++          session.pinned = pinned
++          await sessions.put(session)
++          await tx.objectStore('sessionSummaries').put(storedSummary(session))
++        }
++      } catch (error) {
++        abortTransaction(tx)
++        throw error
++      }
++    })(),
++    tx.done,
++  ])
++}
+ export const deleteSession = async (sessionId: string): Promise<void> => {
+   const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
+   await Promise.all([
+diff --git a/src/services/chat/sessionGroups.ts b/src/services/chat/sessionGroups.ts
+index 8540bb1..6271eb2 100644
+--- a/src/services/chat/sessionGroups.ts
++++ b/src/services/chat/sessionGroups.ts
+@@ -9,7 +9,11 @@ const startOfDay = (time: number) => new Date(time).setHours(0, 0, 0, 0)
+ /** 分组：今天 / 昨天 / 7 天内 / 30 天内 / 按月 */
+ export const groupSessions = (sessions: SessionSummary[], now: number, t = translate) => {
+   const groups: { key: string; label: string; sessions: SessionSummary[] }[] = []
+-  for (const session of sessions) {
++  const pinned = sessions.filter((session) => session.pinned === true)
++  if (pinned.length > 0) {
++    groups.push({ key: 'pinned', label: t('sessionHistoryTimelineLabelPinned'), sessions: pinned })
++  }
++  for (const session of sessions.filter((item) => item.pinned !== true)) {
+     const diff = Math.floor((now - startOfDay(session.updatedAt)) / DAY)
+     const key =
+       diff <= 0
 diff --git a/src/services/chat/store.ts b/src/services/chat/store.ts
-index 32e74a5..b3ad2fd 100644
+index 32e74a5..c316ca7 100644
 --- a/src/services/chat/store.ts
 +++ b/src/services/chat/store.ts
 @@ -288,6 +288,28 @@ const settleInterrupted = (session: Session): Session => {
@@ -954,3 +1076,57 @@ index 32e74a5..b3ad2fd 100644
        const summaries = await db.loadSessionSummaries()
        if (epoch === historyEpoch) {
          set({ ready: true, sessions: sortSessions(summaries) })
+@@ -477,6 +500,29 @@ export const renameSession = (id: string, title: string) => {
+   }
+ }
+ 
++/** 切换置顶：列表先按置顶分组，组内仍按更新时间排序。 */
++export const togglePinned = (id: string) => {
++  if (get().importingHistory || deletingSessions.has(id)) {
++    return
++  }
++  const summary = get().sessions.find((session) => session.id === id)
++  if (summary === undefined) {
++    return
++  }
++  const pinned = summary.pinned !== true
++  set((state) => ({
++    sessions: state.sessions.map((session) =>
++      session.id === id ? { ...session, pinned } : session
++    ),
++  }))
++  const session = getSession(id)
++  if (session) {
++    updateSession(id, (value) => ({ ...value, pinned }))
++    persist(id)
++  } else {
++    void db.setPinned(id, pinned).catch(db.reportStorageError('pin session'))
++  }
++}
+ /**
+  * 删除会话；本地原件仅在没有其他会话引用时清理。远端文件不删：导入、编辑、重新生成都会复用同一个附件，
+  * 同一服务端文件可能被多个会话引用，不维护引用计数。
+diff --git a/src/services/chat/types.ts b/src/services/chat/types.ts
+index e0df097..03d85b4 100644
+--- a/src/services/chat/types.ts
++++ b/src/services/chat/types.ts
+@@ -114,10 +114,12 @@ export type Session = {
+   messages: Message[]
+   /** undefined 表示线性消息列表；null 表示空会话。 */
+   rootMessageId?: string | null
++  /** 置顶显示在会话列表顶部。 */
++  pinned?: boolean
+ }
+ 
+ /** 会话列表元数据；消息只在打开会话时加载。 */
+-export type SessionSummary = Pick<Session, 'id' | 'title' | 'createdAt' | 'updatedAt'>
++export type SessionSummary = Pick<Session, 'id' | 'title' | 'createdAt' | 'updatedAt'> & { pinned?: boolean }
+ 
+ /** 显式提取字段，避免将完整会话的消息带进列表。 */
+ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
+@@ -125,4 +127,5 @@ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
+   title: session.title,
+   createdAt: session.createdAt,
+   updatedAt: session.updatedAt,
++  ...(session.pinned === true ? { pinned: true } : {}),
+ })

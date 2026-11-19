@@ -20,7 +20,8 @@
 上游基准：`5d5dd754ebc1948e977ddb880a9eb5aa25f37b4c`（chat-demo v0.1.1，MIT）。补丁在
 `webview/patches/0001-dsh-integration.patch`：请求落点、品牌字标、隐藏 API Key 输入、启动时取走导入、
 会话搜索（侧栏搜索按钮 + 居中浮层，按标题与正文检索本地会话，见 `src/components/sider/SessionSearch.tsx`）、
-右侧轮次进度条（每条提问一根刻度，悬停预览、点击跳转，见 `src/components/messages/TurnRail.tsx`）。
+右侧轮次进度条（每条提问一根刻度，悬停预览、点击跳转，见 `src/components/messages/TurnRail.tsx`）、
+会话置顶（`Session.pinned`，列表顶部单独分组；菜单入口见 `src/components/sider/SessionItem.tsx`）。
 
 改前端要跑 `pwsh scripts/build-webview.ps1`：它会先 `git checkout` 上游、`git clean -fd`、再 `git apply` 补丁，
 所以**不要在 vendor 里直接留改动**——改完先 `git add -A` 生成新补丁，再跑构建，否则改动会被重置掉。
@@ -49,4 +50,5 @@ pwsh scripts/build-webview.ps1     # 克隆上游、打补丁、构建、同步 
 - 槽位：`main` / `sidebar.panellist` 有 `chat-demo`；会话菜单走 `contextMenus` 贡献，所以旧插槽 `sidebar.workspaces.session.menu.item` 应当是空的；`conversation.view` 里**不应**出现。
 - 菜单样式：会话右键菜单里的「导入到网页版」必须和置顶、重命名等原生条目等高同字号——新加菜单项一律用 `ctx.contextMenus.register`，不要往旧插槽塞自定义按钮。
 - 导入：右键任意会话 →「导入到网页版」→ `GET /webchat/api/import/pending` 返回该会话 → 网页版启动时写入并 `ack`。
+- 置顶：会话「…」菜单 →置顶 → 列表顶部出现「置顶」分组；菜单变「取消置顶」；刷新后仍保持。
 
