@@ -231,10 +231,10 @@ index 6b8c0e9..17d496f 100644
  }
 diff --git a/src/components/messages/TurnRail.module.css b/src/components/messages/TurnRail.module.css
 new file mode 100644
-index 0000000..eeaca77
+index 0000000..9ae8198
 --- /dev/null
 +++ b/src/components/messages/TurnRail.module.css
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,157 @@
 +/* 官方 scrollNav 的尺寸：行高 30px、短刻度 8×2、圆角 4px、容器最多 240px 宽。 */
 +.rail {
 +  position: absolute;
@@ -333,11 +333,14 @@ index 0000000..eeaca77
 +}
 +
 +.itemTitle {
++  flex: 1;
++  min-width: 0;
 +  margin-right: 12px;
 +  overflow: hidden;
 +  font: var(--dsw-font-xs-13);
 +  white-space: nowrap;
 +  text-overflow: ellipsis;
++  text-align: left;
 +  opacity: 0;
 +  transition:
 +    opacity 0.1s,
@@ -589,10 +592,10 @@ index c50dd62..ee3473b 100644
                label: t('delete'),
 diff --git a/src/components/sider/SessionSearch.module.css b/src/components/sider/SessionSearch.module.css
 new file mode 100644
-index 0000000..a1c04e2
+index 0000000..e144ecd
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.module.css
-@@ -0,0 +1,214 @@
+@@ -0,0 +1,219 @@
 +/* 尺寸与结构对齐官网：660px 宽、72vh 高、结果行最小 67px。 */
 +.overlay {
 +  position: fixed;
@@ -610,7 +613,7 @@ index 0000000..a1c04e2
 +  flex-direction: column;
 +  box-sizing: border-box;
 +  width: min(660px, 100vw - 24px);
-+  height: 72vh;
++  height: auto;
 +  max-height: calc(100% - 24px);
 +  overflow: hidden;
 +  border-radius: 20px;
@@ -619,6 +622,11 @@ index 0000000..a1c04e2
 +  box-shadow:
 +    0 2px 4px rgba(0, 0, 0, 0.04),
 +    0 4px 10px rgba(0, 0, 0, 0.02);
++}
++
++/* 官网：未输入关键词时浮层只有输入条，输入后才展开成 72vh */
++.dialog[data-expanded='true'] {
++  height: 72vh;
 +}
 +
 +.field {
@@ -809,10 +817,10 @@ index 0000000..a1c04e2
 +}
 diff --git a/src/components/sider/SessionSearch.tsx b/src/components/sider/SessionSearch.tsx
 new file mode 100644
-index 0000000..cbb8bcd
+index 0000000..3aaa68c
 --- /dev/null
 +++ b/src/components/sider/SessionSearch.tsx
-@@ -0,0 +1,249 @@
+@@ -0,0 +1,250 @@
 +import { useEffect, useRef, useState } from 'react'
 +import type { KeyboardEvent } from 'react'
 +import { useTranslate } from '../../i18n/index.js'
@@ -1008,6 +1016,7 @@ index 0000000..cbb8bcd
 +    <div className={styles.overlay} onClick={closeSessionSearch}>
 +      <div
 +        className={styles.dialog}
++        data-expanded={needle.length > 0 ? 'true' : undefined}
 +        role="dialog"
 +        aria-label={t('searchSessionsButton')}
 +        onClick={event => event.stopPropagation()}
