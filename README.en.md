@@ -83,7 +83,7 @@ Right-click any session in the left session list → "Import to web chat". The c
 
 This plugin is built on DeepSeek's open-source [chat-demo](https://github.com/deepseek-ai/chat-demo). Where requests go, the logo in the top left, and hiding the API Key input are the changes needed to fit into DSH; every other UI detail is replicated from the official site.
 
-The panel's HTTP routes reuse DSH's browser authentication (Host/Origin checks plus the login cookie) and answer 401 to unauthenticated requests; the desktop app's own window is allowed through.
+The panel's HTTP routes reject cross-site browser requests (Sec-Fetch-Site: cross-site or a foreign Origin gets 403); same-origin panels, the desktop app window, and same-origin direct opens are allowed.
 
 The official chat-demo is only the skeleton of the web chat: the UI is there, but many interactions the web version already has are missing. We filled those in to get closer to chat.deepseek.com itself:
 

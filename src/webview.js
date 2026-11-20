@@ -285,26 +285,26 @@ async function selfTest(ctx, config) {
 }
 
 /**
- * 插件路由不在 DSH 的 /api 信任栅栏内，必须自己调用 Connection 的
- * Host/Origin 校验和浏览器认证；否则任何网页都能借已登录的 DSH 调用转发接口。
- * 桌面 App 自身窗口（dsh-app:）不走浏览器 Cookie，直接放行。
+ * 插件路由不在 DSH 的 /api 信任栅栏内，至少拒绝跨站网页发起的请求：
+ * 浏览器跨站请求会带 `Sec-Fetch-Site: cross-site`，或带一个不同源的 Origin。
+ * 同源面板、桌面 App 窗口（dsh-app:）与同源直接打开都放行；不要求 DSH Cookie，
+ * 以免桌面端没有浏览器 Cookie 时整块面板不可用。
  * @returns {number | undefined} 拒绝状态码，放行时为 undefined
  */
-function untrustedRejection(ctx, req) {
+function crossSiteRejection(req) {
+  const site = String(req.headers?.['sec-fetch-site'] ?? '')
+  if (site === 'cross-site') return 403
   const origin = String(req.headers?.origin ?? '')
+  if (origin === '') return undefined
   if (origin.startsWith('dsh-app:')) return undefined
-  let connection
+  let originHost
   try {
-    connection = ctx.get('connection')
+    originHost = new URL(origin).host
   } catch {
-    return undefined
+    return 403
   }
-  if (connection === undefined || typeof connection.requestRejection !== 'function') return undefined
-  try {
-    return connection.requestRejection(req)
-  } catch {
-    return 401
-  }
+  const host = String(req.headers?.host ?? '')
+  return originHost === host ? undefined : 403
 }
 
 /**
@@ -320,8 +320,8 @@ export function createWebview(ctx, config, home) {
     const method = (req.method ?? 'GET').toUpperCase()
     const isGet = method === 'GET' || method === 'HEAD'
 
-    // 与 DSH 自己的 /api 一样要求可信 Host/Origin 与已登录浏览器凭据。
-    const rejection = untrustedRejection(ctx, req)
+    // 拒绝跨站网页发起的调用；同源面板、桌面窗口与同源直接打开放行。
+    const rejection = crossSiteRejection(req)
     if (rejection !== undefined) {
       sendJson(res, { error: { message: rejection === 403 ? '请求来源不受信任' : '需要 DSH 登录' } }, rejection)
       return
