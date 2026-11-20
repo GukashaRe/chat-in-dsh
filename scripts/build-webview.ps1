@@ -9,7 +9,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $vendor = Join-Path $root 'webview\vendor\chat-demo'
 $patch = Join-Path $root 'webview\patches\0001-dsh-integration.patch'
 $dist = Join-Path $root 'webview\dist'
-$upstream = '5d5dd754ebc1948e977ddb880a9eb5aa25f37b4c'
+$upstream = '8ad7b56e196b87d8a3215dc09476d6d146ad3f0e'
 
 if (-not (Test-Path $vendor)) {
   git clone https://github.com/deepseek-ai/chat-demo.git $vendor
@@ -17,10 +17,10 @@ if (-not (Test-Path $vendor)) {
 
 Push-Location $vendor
 try {
-  git checkout $upstream
-  git checkout -- .
+  git fetch origin $upstream
+  git reset --hard $upstream
   git clean -fd
-  git apply $patch
+  git apply --whitespace=nowarn $patch
   pnpm install
   $env:NODE_ENV = 'production'
   pnpm exec rspack build -c rspack.config.ts
