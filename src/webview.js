@@ -285,29 +285,6 @@ async function selfTest(ctx, config) {
 }
 
 /**
- * 插件路由不在 DSH 的 /api 信任栅栏内，至少拒绝跨站网页发起的请求：
- * 浏览器跨站请求会带 `Sec-Fetch-Site: cross-site`，或带一个不同源的 Origin。
- * 同源面板、桌面 App 窗口（dsh-app:）与同源直接打开都放行；不要求 DSH Cookie，
- * 以免桌面端没有浏览器 Cookie 时整块面板不可用。
- * @returns {number | undefined} 拒绝状态码，放行时为 undefined
- */
-function crossSiteRejection(req) {
-  const site = String(req.headers?.['sec-fetch-site'] ?? '')
-  if (site === 'cross-site') return 403
-  const origin = String(req.headers?.origin ?? '')
-  if (origin === '') return undefined
-  if (origin.startsWith('dsh-app:')) return undefined
-  let originHost
-  try {
-    originHost = new URL(origin).host
-  } catch {
-    return 403
-  }
-  const host = String(req.headers?.host ?? '')
-  return originHost === host ? undefined : 403
-}
-
-/**
  * 建立请求处理器（Node 原生 req/res）。
  * @param {import('@deepseek-ai/cordis').Context} ctx
  * @param {{ baseURL?: string }} config
@@ -319,13 +296,6 @@ export function createWebview(ctx, config, home) {
     const { pathname } = url
     const method = (req.method ?? 'GET').toUpperCase()
     const isGet = method === 'GET' || method === 'HEAD'
-
-    // 拒绝跨站网页发起的调用；同源面板、桌面窗口与同源直接打开放行。
-    const rejection = crossSiteRejection(req)
-    if (rejection !== undefined) {
-      sendJson(res, { error: { message: rejection === 403 ? '请求来源不受信任' : '需要 DSH 登录' } }, rejection)
-      return
-    }
 
     // ---- 从 DSH 一次性导入 ----
     if (pathname === '/webchat/api/import/stage' && method === 'POST') {
