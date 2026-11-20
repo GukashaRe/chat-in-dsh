@@ -3941,43 +3941,10 @@ index 73e42f6..7fbe51d 100644
    return task
  }
 diff --git a/src/services/chat/db.ts b/src/services/chat/db.ts
-index a1f58ea..970efc5 100644
+index a1f58ea..551d05b 100644
 --- a/src/services/chat/db.ts
 +++ b/src/services/chat/db.ts
-@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
- import { toSessionSummary, type Session, type SessionSummary } from './types.js'
- 
- /** IndexedDB 存储结构版本；新增或调整存储、索引时递增。 */
--const DB_VERSION = 11
-+const DB_VERSION = 12
- 
- /** 文件原件按附件的本地 id 存储，所有引用同一 id 的消息共用一份；用于缩略图、打开查看，以及没有 serverId 时补传。 */
- export type StoredFile = {
-@@ -29,6 +29,13 @@ interface ChatDB extends DBSchema {
-    */
-   sessionsStaging: { key: string; value: Session }
-   filesStaging: { key: string; value: StoredFile }
-+  /**
-+   * 已处理过的 DSH 导入操作回执；与会话分开存，删除会话后仍能阻止旧快照复活。
-+   */
-+  importReceipts: {
-+    key: string
-+    value: { id: string; at: number }
-+  }
- }
- 
- let dbPromise: Promise<IDBPDatabase<ChatDB>> | null = null
-@@ -62,6 +69,9 @@ const getDB = () =>
-           db.createObjectStore(name, { keyPath: 'id' })
-         }
-       }
-+      if (!db.objectStoreNames.contains('importReceipts')) {
-+        db.createObjectStore('importReceipts', { keyPath: 'id' })
-+      }
-       const summaries = db.objectStoreNames.contains('sessionSummaries')
-         ? tx.objectStore('sessionSummaries')
-         : db.createObjectStore('sessionSummaries', { keyPath: 'id' })
-@@ -124,6 +134,27 @@ export const renameSession = async (id: string, title: string): Promise<void> =>
+@@ -124,6 +124,27 @@ export const renameSession = async (id: string, title: string): Promise<void> =>
  }
  
  /** 删除会话，仅清理已无会话引用的本地原件；远端文件不删。 */
@@ -4005,16 +3972,37 @@ index a1f58ea..970efc5 100644
  export const deleteSession = async (sessionId: string): Promise<void> => {
    const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
    await Promise.all([
-@@ -244,8 +275,62 @@ export const commitStaging = async (): Promise<SessionSummary[]> => {
+@@ -244,8 +265,83 @@ export const commitStaging = async (): Promise<SessionSummary[]> => {
    return summaries
  }
  
-+/** 导入回执独立存 IndexedDB，避免 localStorage 配额失败后旧快照复活已删除会话。 */
++interface ReceiptDB extends DBSchema {
++  receipts: {
++    key: string
++    value: { id: string; at: number }
++  }
++}
++
++let receiptDbPromise: Promise<IDBPDatabase<ReceiptDB>> | null = null
++
++/** 回执放在独立数据库，不升级 chat-demo 主库版本，避免两个面板卡升级。 */
++const getReceiptDB = () =>
++  (receiptDbPromise ??= openDB<ReceiptDB>('chat-demo-import-receipts', 1, {
++    upgrade(db) {
++      if (!db.objectStoreNames.contains('receipts')) {
++        db.createObjectStore('receipts', { keyPath: 'id' })
++      }
++    },
++  }).catch((error: unknown) => {
++    receiptDbPromise = null
++    throw error
++  }))
++
 +export const hasImportReceipt = async (importId: string): Promise<boolean> =>
-+  (await (await getDB()).get('importReceipts', importId)) !== undefined
++  (await (await getReceiptDB()).get('receipts', importId)) !== undefined
 +
 +export const markImportReceipt = async (importId: string): Promise<void> => {
-+  const tx = (await getDB()).transaction('importReceipts', 'readwrite')
++  const tx = (await getReceiptDB()).transaction('receipts', 'readwrite')
 +  await tx.store.put({ id: importId, at: Date.now() })
 +  const receipts = await tx.store.getAll()
 +  if (receipts.length > 300) {
@@ -4349,11 +4337,32 @@ index 7fc1dba..36dd850 100644
    }
    useDrafts.setState({ drafts: new Map() })
  }
+diff --git a/src/services/chat/history/format.ts b/src/services/chat/history/format.ts
+index 4859abf..b4d31e4 100644
+--- a/src/services/chat/history/format.ts
++++ b/src/services/chat/history/format.ts
+@@ -53,6 +53,8 @@ export type ChatMessage = {
+   id: number
+   /** null 表示该会话的第一条 */
+   parent_id: number | null
++  /** 导出前消息的原始 ID；新备份用它恢复 DSH 导入消息编号 */
++  original_id?: string
+   role: ChatRole
+   status: ChatMessageStatus
+   thinking_enabled: boolean
 diff --git a/src/services/chat/history/schema.ts b/src/services/chat/history/schema.ts
-index db0bbf1..d7dc5a1 100644
+index db0bbf1..7895683 100644
 --- a/src/services/chat/history/schema.ts
 +++ b/src/services/chat/history/schema.ts
-@@ -242,7 +242,8 @@ export const readSessionIndex: Read<SessionIndexEntry[]> = list((value) => {
+@@ -202,6 +202,7 @@ const message: Read<ChatMessage> = (value) => {
+   return {
+     id: count(item.id),
+     parent_id: nullable(count)(item.parent_id),
++    ...('original_id' in item ? { original_id: string(item.original_id) } : {}),
+     role: oneOf('USER', 'ASSISTANT')(item.role),
+     status: oneOf(
+       'WIP',
+@@ -242,7 +243,8 @@ export const readSessionIndex: Read<SessionIndexEntry[]> = list((value) => {
    return {
      id: sessionId(item.id),
      title: nullable(string)(item.title),
@@ -4363,7 +4372,7 @@ index db0bbf1..d7dc5a1 100644
      message_count: count(item.message_count),
      inserted_at: time(item.inserted_at),
      updated_at: time(item.updated_at),
-@@ -254,7 +255,8 @@ export const readSessionFile: Read<SessionFile> = (value) => {
+@@ -254,7 +256,8 @@ export const readSessionFile: Read<SessionFile> = (value) => {
    return {
      id: sessionId(item.id),
      title: nullable(string)(item.title),
@@ -4374,10 +4383,19 @@ index db0bbf1..d7dc5a1 100644
      inserted_at: time(item.inserted_at),
      updated_at: time(item.updated_at),
 diff --git a/src/services/chat/history/toArchive.ts b/src/services/chat/history/toArchive.ts
-index 92aa38a..f50b172 100644
+index 92aa38a..50c77f6 100644
 --- a/src/services/chat/history/toArchive.ts
 +++ b/src/services/chat/history/toArchive.ts
-@@ -259,7 +259,7 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
+@@ -241,6 +241,8 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
+     const tree = {
+       id: id(message),
+       parent_id: message.parentId ? (ids.get(message.parentId) ?? null) : null,
++      // 归档格式仍用顺序号，但保留原 ID，回导后可继续和 DSH 原始消息合并。
++      original_id: message.id,
+     }
+     const reply = message.role === 'assistant' ? message : firstReply.get(message.id)
+     return {
+@@ -259,7 +261,7 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
    return {
      id: session.id,
      title: session.title || null,
@@ -4386,7 +4404,7 @@ index 92aa38a..f50b172 100644
      // 格式要求非空；空会话没有消息可指向，写 0。
      current_message_id: current ? id(current) : 0,
      inserted_at: iso(session.createdAt),
-@@ -271,7 +271,7 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
+@@ -271,7 +273,7 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
  export const toIndexEntry = (file: SessionFile): SessionIndexEntry => ({
    id: file.id,
    title: file.title,
@@ -4396,10 +4414,53 @@ index 92aa38a..f50b172 100644
    inserted_at: file.inserted_at,
    updated_at: file.updated_at,
 diff --git a/src/services/chat/history/toLocal.ts b/src/services/chat/history/toLocal.ts
-index c194799..349321b 100644
+index c194799..857839e 100644
 --- a/src/services/chat/history/toLocal.ts
 +++ b/src/services/chat/history/toLocal.ts
-@@ -278,6 +278,7 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
+@@ -260,6 +260,7 @@ const buildTree = (file: SessionFile): Pick<Session, 'messages' | 'rootMessageId
+     return { messages, rootMessageId: null }
+   }
+   let current = byId.get(file.current_message_id) ?? fail('backupInvalidBranches')
++  const rootNumericId = Number(current.id)
+   // 当前消息就是用户停留的位置，后面即使还有消息也不继续展开。
+   current.selectedChildId = undefined
+   while (current.parentId) {
+@@ -267,6 +268,34 @@ const buildTree = (file: SessionFile): Pick<Session, 'messages' | 'rootMessageId
+     parent.selectedChildId = current.id
+     current = parent
+   }
++  // 新备份会保存导出前的原始消息 ID；全部消息都有且唯一时才恢复，
++  // 这样回导后再从 DSH 导入同一会话，消息编号仍能对上。旧备份没有该字段，保持顺序号。
++  const numericToOriginal = new Map<number, string>()
++  const allHaveOriginalId = file.messages.length > 0 && file.messages.every(
++    (message) => typeof message.original_id === 'string' && message.original_id.length > 0
++  )
++  if (allHaveOriginalId) {
++    for (const message of file.messages) {
++      numericToOriginal.set(message.id, message.original_id as string)
++    }
++    if (new Set(numericToOriginal.values()).size !== file.messages.length) {
++      return { messages, rootMessageId: current.id }
++    }
++    for (const [numericId, message] of byId) {
++      const originalId = numericToOriginal.get(numericId) ?? fail('backupInvalidBranches')
++      message.parentId = message.parentId
++        ? (numericToOriginal.get(Number(message.parentId)) ?? fail('backupInvalidBranches'))
++        : null
++      message.selectedChildId = message.selectedChildId
++        ? (numericToOriginal.get(Number(message.selectedChildId)) ?? fail('backupInvalidBranches'))
++        : undefined
++      message.id = originalId
++    }
++    return {
++      messages,
++      rootMessageId: numericToOriginal.get(rootNumericId) ?? fail('backupInvalidBranches'),
++    }
++  }
+   return { messages, rootMessageId: current.id }
+ }
+ 
+@@ -278,6 +307,7 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
      title: file.title ?? '',
      createdAt: time(file.inserted_at),
      updatedAt: time(file.updated_at),
@@ -4425,7 +4486,7 @@ index 8540bb1..6271eb2 100644
      const key =
        diff <= 0
 diff --git a/src/services/chat/store.ts b/src/services/chat/store.ts
-index 0d28fa5..2b1f9e2 100644
+index 0d28fa5..9d82ab1 100644
 --- a/src/services/chat/store.ts
 +++ b/src/services/chat/store.ts
 @@ -2,11 +2,18 @@ import { create } from 'zustand'
@@ -4560,11 +4621,36 @@ index 0d28fa5..2b1f9e2 100644
    }
  }
  
-@@ -294,6 +355,164 @@ const settleInterrupted = (session: Session): Session => {
+@@ -294,6 +355,202 @@ const settleInterrupted = (session: Session): Session => {
    }
  }
  
 +type StoredMessage = Session['messages'][number]
++
++const importedContent = (message: StoredMessage): string =>
++  message.role === 'user'
++    ? JSON.stringify([
++        'user',
++        message.content,
++        message.files.map((file) => [file.id, file.serverId, file.name]),
++      ])
++    : JSON.stringify(['assistant', message.blocks])
++
++/**
++ * 旧备份导出时会丢失原消息 ID；若本地消息内容与新快照前缀完全一致且本地仍是
++ * 旧备份的顺序号，可安全换回 DSH 的原始编号，再继续追加新轮次。
++ */
++const canRemapLegacyIds = (
++  local: Session,
++  incoming: Session
++): boolean =>
++  local.messages.length > 0 &&
++  local.messages.length <= incoming.messages.length &&
++  local.messages.every((message) => /^\d+$/.test(message.id)) &&
++  local.messages.every(
++    (message, index) =>
++      importedContent(message) === importedContent(incoming.messages[index])
++  )
 +
 +/**
 + * 同一消息编号的 DSH 回答可能只是变长：一次提问后的多条 assistant 记录会合并成一条。
@@ -4628,29 +4714,42 @@ index 0d28fa5..2b1f9e2 100644
 +  local: Session,
 +  incoming: Session
 +): Session | undefined => {
-+  const prefix = local.messages.length <= incoming.messages.length &&
++  const idPrefix = local.messages.length <= incoming.messages.length &&
 +    local.messages.every(
 +      (message, index) => message.id === incoming.messages[index].id
 +    )
-+  if (!prefix) {
++  const legacyRemap = !idPrefix && canRemapLegacyIds(local, incoming)
++  if (!idPrefix && !legacyRemap) {
 +    return undefined
 +  }
 +  const messages: StoredMessage[] = []
 +  let changed = false
-+  for (let index = 0; index < local.messages.length; index += 1) {
-+    const merged = mergeImportedMessage(local.messages[index], incoming.messages[index])
-+    if (merged === undefined) {
-+      return undefined
++  if (legacyRemap) {
++    // 旧 ZIP 恢复出来的顺序号换回 DSH 原始编号；内容已逐条核对一致。
++    messages.push(...incoming.messages.slice(0, local.messages.length).map((message) => ({ ...message })))
++    changed = true
++  } else {
++    for (let index = 0; index < local.messages.length; index += 1) {
++      const merged = mergeImportedMessage(local.messages[index], incoming.messages[index])
++      if (merged === undefined) {
++        return undefined
++      }
++      messages.push(merged.message)
++      if (merged.changed) changed = true
 +    }
-+    messages.push(merged.message)
-+    if (merged.changed) changed = true
 +  }
 +  const tail = incoming.messages.slice(local.messages.length)
 +  if (tail.length === 0) {
 +    if (!changed && (incoming.importId === undefined || incoming.importId === local.importId)) {
 +      return undefined
 +    }
-+    return { ...local, messages, updatedAt: Math.max(local.updatedAt, incoming.updatedAt), importId: incoming.importId }
++    return {
++      ...local,
++      rootMessageId: legacyRemap ? incoming.rootMessageId : local.rootMessageId,
++      messages,
++      updatedAt: Math.max(local.updatedAt, incoming.updatedAt),
++      importId: incoming.importId,
++    }
 +  }
 +  const lastLocal = messages.length - 1
 +  if (lastLocal >= 0) {
@@ -4661,7 +4760,7 @@ index 0d28fa5..2b1f9e2 100644
 +  return {
 +    ...local,
 +    rootMessageId:
-+      local.messages.length === 0
++      local.messages.length === 0 || legacyRemap
 +        ? (incoming.rootMessageId ?? tail[0]?.id ?? null)
 +        : local.rootMessageId,
 +    messages,
@@ -4725,7 +4824,7 @@ index 0d28fa5..2b1f9e2 100644
  export const initChat = (): Promise<void> => {
    if (get().ready) {
      return Promise.resolve()
-@@ -305,6 +524,7 @@ export const initChat = (): Promise<void> => {
+@@ -305,6 +562,7 @@ export const initChat = (): Promise<void> => {
    set({ initError: false })
    initTask = (async () => {
      try {
@@ -4733,7 +4832,7 @@ index 0d28fa5..2b1f9e2 100644
        const summaries = await db.loadSessionSummaries()
        if (epoch === historyEpoch) {
          set({ ready: true, sessions: sortSessions(summaries) })
-@@ -422,6 +642,7 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
+@@ -422,6 +680,7 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
      sessionAccess.clear()
      unsavedSessions.clear()
      pendingFiles.clear()
@@ -4741,7 +4840,7 @@ index 0d28fa5..2b1f9e2 100644
      clearAllDrafts()
      set({
        ready: true,
-@@ -462,6 +683,65 @@ export const selectSession = (id: string) => {
+@@ -462,6 +721,65 @@ export const selectSession = (id: string) => {
    }
  }
  
@@ -4807,7 +4906,7 @@ index 0d28fa5..2b1f9e2 100644
  export const renameSession = (id: string, title: string) => {
    if (get().importingHistory || deletingSessions.has(id)) {
      return
-@@ -470,19 +750,108 @@ export const renameSession = (id: string, title: string) => {
+@@ -470,19 +788,108 @@ export const renameSession = (id: string, title: string) => {
    if (controller) {
      titleRequests.delete(controller)
    }
@@ -4917,7 +5016,7 @@ index 0d28fa5..2b1f9e2 100644
  /**
   * 删除会话；本地原件仅在没有其他会话引用时清理。远端文件不删：导入、编辑、重新生成都会复用同一个附件，
   * 同一服务端文件可能被多个会话引用，不维护引用计数。
-@@ -560,6 +929,10 @@ export const sendMessage = (targetSessionId: string | null) => {
+@@ -560,6 +967,10 @@ export const sendMessage = (targetSessionId: string | null) => {
      return false
    }
    const { text, files } = prepared
@@ -4928,7 +5027,7 @@ index 0d28fa5..2b1f9e2 100644
    const now = Date.now()
    let sessionId = targetSessionId
    if (
-@@ -594,7 +967,7 @@ export const sendMessage = (targetSessionId: string | null) => {
+@@ -594,7 +1005,7 @@ export const sendMessage = (targetSessionId: string | null) => {
      id: createId(),
      role: 'user',
      content: text,
@@ -4937,7 +5036,7 @@ index 0d28fa5..2b1f9e2 100644
        id,
        serverId,
        // 草稿附件已上传成功，每张图片都在上传前检查过长边，超限的已缩小。
-@@ -603,6 +976,7 @@ export const sendMessage = (targetSessionId: string | null) => {
+@@ -603,6 +1014,7 @@ export const sendMessage = (targetSessionId: string | null) => {
        size,
        isImage,
        mimeType,
@@ -4945,7 +5044,7 @@ index 0d28fa5..2b1f9e2 100644
      })),
      createdAt: now,
    }
-@@ -978,10 +1352,77 @@ const waitForRetry = (attempt: number, signal: AbortSignal) =>
+@@ -978,10 +1390,77 @@ const waitForRetry = (attempt: number, signal: AbortSignal) =>
      signal.addEventListener('abort', onAbort, { once: true })
    })
  
@@ -5023,7 +5122,7 @@ index 0d28fa5..2b1f9e2 100644
   */
  const streamReply = async (sessionId: string, initial: AssistantMessage, request: Request) => {
    const controller = new AbortController()
-@@ -997,6 +1438,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -997,6 +1476,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
      updateReply(sessionId, reply)
    }
    streamFlushes.set(sessionId, flush)
@@ -5032,7 +5131,7 @@ index 0d28fa5..2b1f9e2 100644
  
    try {
      for (let attempt = 0; ; attempt += 1) {
-@@ -1027,10 +1470,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1027,10 +1508,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
              system: SYSTEM_PROMPT,
              messages,
              thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
@@ -5051,7 +5150,7 @@ index 0d28fa5..2b1f9e2 100644
            controller.signal
          )
          const blockIndexes = new Map<number, number>()
-@@ -1056,6 +1503,15 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1056,6 +1541,15 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
            }
          }
          reply = settleReply(reply, 'done', Date.now())
@@ -5067,7 +5166,7 @@ index 0d28fa5..2b1f9e2 100644
          break
        } catch (error) {
          if (controller.signal.aborted) {
-@@ -1071,6 +1527,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1071,6 +1565,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
            })
            break
          }
@@ -5080,7 +5179,7 @@ index 0d28fa5..2b1f9e2 100644
          // 附件失效：重新补传后重发。收到过内容块（含丢弃的客户端工具）后不自动重发。
          if (
            attempt < FILE_RETRY_LIMIT &&
-@@ -1088,12 +1550,65 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1088,12 +1588,65 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
            // 已收到 message_delta 的结束原因，只是缺了结尾的 message_stop
            reply = settleReply(reply, 'done', Date.now())
          } else if (error instanceof ApiError) {
