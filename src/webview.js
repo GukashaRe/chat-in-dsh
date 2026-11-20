@@ -181,7 +181,11 @@ async function proxyFiles(ctx, config, req, res, pathname) {
     sendJson(res, { error: { message: 'DSH 里没有可用的 DeepSeek 凭据：请登录 DeepSeek 账户，或在模型设置里配置 DeepSeek API Key' } }, 401)
     return
   }
-  const target = `${apiRoot(baseURL)}${pathname.slice('/webchat/anthropic/v1'.length)}`
+  const suffix = pathname.slice('/webchat/anthropic/v1'.length)
+  // Anthropic 兼容的 /anthropic/v1/files 网关对 64MiB 以上请求返回 413；
+  // 官方 Files API 根路径能接收 100MiB，因此附件上传/删除改走根 /files。
+  const root = baseURL.replace(/\/+$/u, '').replace(/\/anthropic$/u, '')
+  const target = suffix.startsWith('/files') ? `${root}${suffix}` : `${apiRoot(baseURL)}${suffix}`
   // 优先沿用浏览器发来的 beta 版本，没带时才用已知可用的那个。
   const clientBeta = req.headers['anthropic-beta']
   const headers = {
@@ -189,11 +193,18 @@ async function proxyFiles(ctx, config, req, res, pathname) {
     'anthropic-beta': typeof clientBeta === 'string' && clientBeta.length > 0 ? clientBeta : 'files-api-2025-04-14',
     ...auth.headers,
   }
+  if (suffix.startsWith('/files') && auth.source === 'api-key') {
+    headers.authorization = `Bearer ${auth.headers['x-api-key']}`
+  }
   const init = { method: req.method, headers }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     const contentType = req.headers['content-type']
     if (typeof contentType === 'string') headers['content-type'] = contentType
-    init.body = await readBody(req)
+    const contentLength = req.headers['content-length']
+    if (typeof contentLength === 'string') headers['content-length'] = contentLength
+    // 官方 Files API 根路径支持 100MiB；流式转发，不把整个 multipart 读进内存。
+    init.body = Readable.toWeb(req)
+    init.duplex = 'half'
   }
   const upstream = await fetch(target, init)
   const text = await upstream.text()
