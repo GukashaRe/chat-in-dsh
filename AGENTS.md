@@ -50,6 +50,9 @@ pwsh scripts/build-webview.ps1     # 克隆上游、打补丁、构建、同步 
 - 槽位：`main` / `sidebar.panellist` 有 `chat-demo`；会话菜单走 `contextMenus` 贡献，所以旧插槽 `sidebar.workspaces.session.menu.item` 应当是空的；`conversation.view` 里**不应**出现。
 - 菜单样式：会话右键菜单里的「导入到网页版」必须和置顶、重命名等原生条目等高同字号——新加菜单项一律用 `ctx.contextMenus.register`，不要往旧插槽塞自定义按钮。
 - 导入：右键任意会话 →「导入到网页版」→ `GET /webchat/api/import/pending` 返回该会话 → 网页版启动时写入并 `ack`。
+  本地记录不旧于快照时保留本地并确认暂存，本地更旧才允许重新导入更新；ZIP 导入/导出/清空与待导入共用 Web Locks 串行，
+  避免两个同源面板同时提交暂存把正式记录清空。
+- 本地保存：连接被系统关闭时先自动重开并补存一次；手动「重试」也会先丢弃失效句柄，不再复用已关闭的连接。
 - 置顶：会话「…」菜单 →置顶 → 列表顶部出现「置顶」分组；菜单变「取消置顶」；刷新后仍保持。
   导出 ZIP 后 `chat_sessions/*.json` 与 `chat_session_index.json` 的 `pinned` 都必须为 true，导入回来仍置顶。
 - 搜索：命中旧分支的消息时，点击会先切回该分支再滚到消息（`[data-message-id]` 存在）；标题命中单独成行，关键词多处命中都要加粗。
