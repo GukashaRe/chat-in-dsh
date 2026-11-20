@@ -155,7 +155,7 @@ async function proxyMessages(ctx, config, req, res) {
       accept: 'text/event-stream',
       'anthropic-version': '2023-06-01',
       ...(typeof beta === 'string' && beta.length > 0 ? { 'anthropic-beta': beta } : {}),
-      [TOKEN_HEADER]: token,
+      ...auth.headers,
     },
     body,
   })
