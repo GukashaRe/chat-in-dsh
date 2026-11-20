@@ -1,8 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import zlib from 'node:zlib'
 
-import { decompressSessionLog, parseSessionLog } from '../src/dsh-import.js'
+import {
+  ackPending,
+  decompressSessionLog,
+  listPending,
+  parseSessionLog,
+  stageImport,
+} from '../src/dsh-import.js'
 
 const line = (type, data, time) => JSON.stringify({ type, seq: 0, time, data })
 
@@ -34,5 +43,26 @@ test('导入：多帧 zstd 逐帧解压', () => {
   const frame = text => zlib.zstdCompressSync(Buffer.from(text))
   const buffer = Buffer.concat([frame('第一帧\n'), frame('第二帧\n')])
   assert.equal(decompressSessionLog(buffer), '第一帧\n第二帧\n')
+})
+
+test('导入暂存：旧操作的确认不会删除后来生成的新暂存', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-import-'))
+  try {
+    const session = { id: 's1', title: '测试', createdAt: 1, updatedAt: 2, messages: [] }
+    const first = stageImport(home, session)
+    assert.equal(listPending(home).length, 1)
+    assert.equal(listPending(home)[0].importId, first.importId)
+
+    const second = stageImport(home, session)
+    assert.notEqual(second.importId, first.importId)
+    assert.deepEqual(ackPending(home, [{ id: 's1', importId: first.importId }]), [])
+    assert.deepEqual(ackPending(home, ['s1']), [])
+    assert.equal(listPending(home).length, 1)
+
+    assert.deepEqual(ackPending(home, [{ id: 's1', importId: second.importId }]), ['s1'])
+    assert.equal(listPending(home).length, 0)
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+  }
 })
 

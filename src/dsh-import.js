@@ -4,6 +4,7 @@
  * 只读。导入是用户主动发起的复制，复制完两边就各走各的——
  * 网页版有自己的存储，这里不会反过来写 DSH。
  */
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
@@ -181,8 +182,10 @@ export function stageImport(home, session) {
   const root = stagingRoot(home)
   fs.mkdirSync(root, { recursive: true })
   const file = path.join(root, `${session.id}.json`)
-  fs.writeFileSync(file, JSON.stringify(session))
-  return file
+  // 每次用户主动导入生成新的操作标识；宿主重送沿用，面板用它区分重放和再次导入。
+  const importId = randomUUID()
+  fs.writeFileSync(file, JSON.stringify({ ...session, importId }))
+  return { file, importId }
 }
 
 /** 取出全部暂存会话。 */
@@ -206,15 +209,30 @@ export function listPending(home) {
 }
 
 /** 确认已取走，删除暂存。 */
-export function ackPending(home, ids) {
+export function ackPending(home, imports) {
   const root = stagingRoot(home)
   const removed = []
-  for (const id of ids) {
+  for (const entry of imports) {
+    const id = typeof entry === 'string' ? entry : String(entry.id ?? '')
+    const importId = typeof entry === 'string' ? undefined : entry.importId
+    if (id === '') continue
     const file = path.join(root, `${id}.json`)
-    if (fs.existsSync(file)) {
-      fs.unlinkSync(file)
-      removed.push(id)
+    if (!fs.existsSync(file)) continue
+    // 旧面板或旧暂存没有 importId：只有文件本身也没有标识时才允许按 ID 删除；
+    // 否则旧确认会把同一会话后来生成的新暂存一并删掉。
+    let stored
+    try {
+      stored = JSON.parse(fs.readFileSync(file, 'utf8'))
+    } catch {
+      continue
     }
+    if (importId !== undefined) {
+      if (stored.importId !== importId) continue
+    } else if (stored.importId !== undefined) {
+      continue
+    }
+    fs.unlinkSync(file)
+    removed.push(id)
   }
   return removed
 }

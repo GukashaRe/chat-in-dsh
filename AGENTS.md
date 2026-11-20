@@ -50,9 +50,13 @@ pwsh scripts/build-webview.ps1     # 克隆上游、打补丁、构建、同步 
 - 槽位：`main` / `sidebar.panellist` 有 `chat-demo`；会话菜单走 `contextMenus` 贡献，所以旧插槽 `sidebar.workspaces.session.menu.item` 应当是空的；`conversation.view` 里**不应**出现。
 - 菜单样式：会话右键菜单里的「导入到网页版」必须和置顶、重命名等原生条目等高同字号——新加菜单项一律用 `ctx.contextMenus.register`，不要往旧插槽塞自定义按钮。
 - 导入：右键任意会话 →「导入到网页版」→ `GET /webchat/api/import/pending` 返回该会话 → 网页版启动时写入并 `ack`。
-  本地记录不旧于快照时保留本地并确认暂存，本地更旧才允许重新导入更新；ZIP 导入/导出/清空与待导入共用 Web Locks 串行，
-  避免两个同源面板同时提交暂存把正式记录清空。
+  每次主动导入带 `importId`，宿主重送沿用；确认按 `importId` 精确匹配，旧/无标识确认不会删掉新暂存。
+  已处理的 `importId` 另存本地回执，确认丢失后即使用户删除了会话也不会被旧快照复活。已有本地会话时只有
+  本地消息序列是快照前缀才更新：同一回答的思考/正文块只允许末尾续写，新轮次追加尾部并接好选中链；
+  本地续聊/分支/删除/改正文一律保留，标题与置顶始终保留本地；
+  ZIP 导入/导出/清空与待导入共用 Web Locks 串行，避免两个同源面板同时提交暂存把正式记录清空。
 - 本地保存：连接被系统关闭时先自动重开并补存一次；手动「重试」也会先丢弃失效句柄，不再复用已关闭的连接。
+  未打开会话的重命名失败会登记到待重试队列，点「重试」可补存并清除错误。
 - 置顶：会话「…」菜单 →置顶 → 列表顶部出现「置顶」分组；菜单变「取消置顶」；刷新后仍保持。
   导出 ZIP 后 `chat_sessions/*.json` 与 `chat_session_index.json` 的 `pinned` 都必须为 true，导入回来仍置顶。
 - 搜索：命中旧分支的消息时，点击会先切回该分支再滚到消息（`[data-message-id]` 存在）；标题命中单独成行，关键词多处命中都要加粗。
@@ -68,9 +72,11 @@ pwsh scripts/build-webview.ps1     # 克隆上游、打补丁、构建、同步 
   命中 400 `user input too long ... max 32768` 时前端去掉扩展字段用普通模式重发。降级成功后单独补一次标题：
   提问（≤1000 字符）+ 文件名 + 粘贴原文截断（≤3000）+ 主回复摘要（≤1000），标题落盘；普通短消息不降级。
 - 附件上限：按官方网页版，PDF/Word/PPT 100MB、图片 64MB、文本/表格/电子书 32MB；草稿与单个对话累计
-  最多 20 个附件，超出显示官方文案。
-- 附件上传：`/webchat/anthropic/v1/files` 的 POST/DELETE 转发到官方 Files API 根路径 `/files`
-  （Anthropic 兼容路径网关对 64MiB 以上请求返回 413）；请求体流式转发，实测 93MB PDF 上传成功。
+  最多 20 个附件，超出显示官方文案；切分支后发送前还会按发送当时的可见分支再校验一次。
+- 附件上传：仅官方端点（hostname `api.deepseek.com`）把 `/webchat/anthropic/v1/files` 的 POST/DELETE
+  转发到 Files API 根路径 `/files`（Anthropic 兼容路径网关对 64MiB 以上请求返回 413）；自定义兼容网关
+  保留 `/anthropic/v1/files` 原路径。请求体流式转发，实测 93MB PDF 上传成功；图片也带 `purpose=user_data`
+  （仍先预缩放），否则官方根路径会拒绝。
 - 8MiB 文档文字：上传阶段文本文件超限显示「文件内容过长」；发送阶段
   `Documents are too large ... exceeds 8 MiB` 用消息级 hint「文件内容过长」。
 - 语音：`POST /webchat/v1/tools/tts` 返回 `audio/pcm`（24kHz/16bit/单声道），`/asr` 返回 `{text,duration_ms}`；

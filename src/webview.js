@@ -183,9 +183,19 @@ async function proxyFiles(ctx, config, req, res, pathname) {
   }
   const suffix = pathname.slice('/webchat/anthropic/v1'.length)
   // Anthropic 兼容的 /anthropic/v1/files 网关对 64MiB 以上请求返回 413；
-  // 官方 Files API 根路径能接收 100MiB，因此附件上传/删除改走根 /files。
-  const root = baseURL.replace(/\/+$/u, '').replace(/\/anthropic$/u, '')
-  const target = suffix.startsWith('/files') ? `${root}${suffix}` : `${apiRoot(baseURL)}${suffix}`
+  // 官方 Files API 根路径能接收 100MiB，因此只在已知官方端点改走根 /files。
+  // 自定义兼容网关可能只实现 /anthropic/v1/files，必须保留原路径。
+  let officialRoot
+  try {
+    const parsed = new URL(baseURL)
+    if (parsed.hostname === 'api.deepseek.com') {
+      officialRoot = parsed.origin
+    }
+  } catch {
+    // 非 URL 配置按自定义网关处理。
+  }
+  const useRootFiles = officialRoot !== undefined && suffix.startsWith('/files')
+  const target = useRootFiles ? `${officialRoot}${suffix}` : `${apiRoot(baseURL)}${suffix}`
   // 优先沿用浏览器发来的 beta 版本，没带时才用已知可用的那个。
   const clientBeta = req.headers['anthropic-beta']
   const headers = {
@@ -193,7 +203,7 @@ async function proxyFiles(ctx, config, req, res, pathname) {
     'anthropic-beta': typeof clientBeta === 'string' && clientBeta.length > 0 ? clientBeta : 'files-api-2025-04-14',
     ...auth.headers,
   }
-  if (suffix.startsWith('/files') && auth.source === 'api-key') {
+  if (useRootFiles && auth.source === 'api-key') {
     headers.authorization = `Bearer ${auth.headers['x-api-key']}`
   }
   const init = { method: req.method, headers }
@@ -346,8 +356,8 @@ export function createWebview(ctx, config, home) {
         sendJson(res, { ok: false, error: '找不到这条会话，或它没有可导入的内容' }, 404)
         return
       }
-      stageImport(home, session)
-      sendJson(res, { ok: true, id: session.id, title: session.title, messages: session.messages.length })
+      const staged = stageImport(home, session)
+      sendJson(res, { ok: true, id: session.id, title: session.title, messages: session.messages.length, importId: staged.importId })
       return
     }
     if (pathname === '/webchat/api/import/pending' && isGet) {
@@ -357,7 +367,11 @@ export function createWebview(ctx, config, home) {
     if (pathname === '/webchat/api/import/ack' && method === 'POST') {
       const body = await readJsonBody(req)
       const ids = Array.isArray(body.ids) ? body.ids.map(String) : []
-      sendJson(res, { removed: ackPending(home, ids) })
+      // 新前端带 imports（含 importId）；兼容旧版只有 ids 的确认请求。
+      const imports = Array.isArray(body.imports)
+        ? body.imports
+        : ids.map(id => ({ id }))
+      sendJson(res, { removed: ackPending(home, imports) })
       return
     }
     if (pathname === '/webchat/api/self-test' && isGet) {

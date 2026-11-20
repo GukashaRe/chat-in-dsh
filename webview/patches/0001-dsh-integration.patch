@@ -407,7 +407,7 @@ index c4594f8..92a3698 100644
    border: none;
    border-radius: 50%;
 diff --git a/src/components/chatInput/ChatInput.tsx b/src/components/chatInput/ChatInput.tsx
-index 7a66a71..bee0cc4 100644
+index 7a66a71..b642d00 100644
 --- a/src/components/chatInput/ChatInput.tsx
 +++ b/src/components/chatInput/ChatInput.tsx
 @@ -1,5 +1,6 @@
@@ -550,14 +550,14 @@ index 7a66a71..bee0cc4 100644
 -        removeDraftAttachment(sessionId, id)
 +      if (useChatStore.getState().importingHistory) {
 +        return
-       }
++      }
 +      const pasted = getDraft(sessionId).attachments.some(
 +        (item) => item.id === id && item.pastedText !== undefined
 +      )
 +      if (pasted) {
 +        restorePastedAttachmentText(id)
 +        return
-+      }
+       }
 +      removeDraftAttachment(sessionId, id)
      },
 -    [sessionId]
@@ -673,7 +673,29 @@ index 7a66a71..bee0cc4 100644
    const dragging = useFileDrop(acceptFiles)
  
    /** 转写结果插入到光标处，并把光标移到插入内容之后 */
-@@ -161,7 +355,13 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
+@@ -133,11 +327,16 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
+   const canSend = !importingHistory && !streaming && voice.status === 'idle' && draftReady
+ 
+   const send = () => {
+-    if (
+-      useChatStore.getState().importingHistory ||
+-      voice.status !== 'idle' ||
+-      !prepareDraftMessage(getDraft(sessionId), useUploads.getState().tasks)
+-    ) {
++    if (useChatStore.getState().importingHistory || voice.status !== 'idle') {
++      return
++    }
++    const prepared = prepareDraftMessage(getDraft(sessionId), useUploads.getState().tasks)
++    if (!prepared) {
++      return
++    }
++    // 切分支后草稿仍可能带着旧分支的附件；以发送当时的可见分支再校验一次。
++    if (countSessionFiles(sessionId) + prepared.files.length > MAX_COUNT) {
++      showToast({ key: 'fileCountLimitExceededToast', params: { count: MAX_COUNT } })
+       return
+     }
+     // 文本与上传完成态由提交动作读取最新快照，不使用上一次渲染的草稿。
+@@ -161,7 +360,13 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
          }
        }}
      >
@@ -688,7 +710,7 @@ index 7a66a71..bee0cc4 100644
        <div className={styles.textareaWrapper}>
          <textarea
            ref={textareaRef}
-@@ -172,7 +372,11 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
+@@ -172,7 +377,11 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
            autoFocus={!isMobile}
            disabled={importingHistory}
            value={text}
@@ -701,7 +723,7 @@ index 7a66a71..bee0cc4 100644
            onMouseDown={(event) => {
              // 首次点击时手动聚焦，避免 Safari 把整个页面滚到输入框位置。
              if (isMobile && event.button === 0 && document.activeElement !== event.currentTarget) {
-@@ -184,15 +388,11 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
+@@ -184,15 +393,11 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                event.preventDefault()
                send()
@@ -795,6 +817,28 @@ index 50d5350..6aa49cf 100644
      />
    )
  }
+diff --git a/src/components/chatInput/DragMask.tsx b/src/components/chatInput/DragMask.tsx
+index 03dcbe7..5e290a3 100644
+--- a/src/components/chatInput/DragMask.tsx
++++ b/src/components/chatInput/DragMask.tsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useRef, useState } from 'react'
+ import { createPortal } from 'react-dom'
+ import { useTranslate } from '../../i18n/index.js'
+-import { MAX_COUNT, MAX_SIZE_MB } from '../../services/attachments.js'
++import { MAX_COUNT } from '../../services/attachments.js'
+ import styles from './DragMask.module.css'
+ 
+ const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') ?? false
+@@ -67,7 +67,7 @@ const DragMaskContent = () => {
+         <UploadIcon />
+         <div className={styles.title}>{t('dragFileToUpload')}</div>
+         <div className={styles.desc}>
+-          {t('dragFileDesc', { count: MAX_COUNT, size: MAX_SIZE_MB })}
++          {t('dragFileDesc', { count: MAX_COUNT })}
+         </div>
+       </div>
+     </div>
 diff --git a/src/components/files/FileCard.module.css b/src/components/files/FileCard.module.css
 index d9222eb..bee229f 100644
 --- a/src/components/files/FileCard.module.css
@@ -3480,7 +3524,7 @@ index 0000000..77baab0
 +
 +export const consumeScrollTarget = () => useSessionSearch.setState({ pending: null })
 diff --git a/src/i18n/en.ts b/src/i18n/en.ts
-index 2d49027..a6d9168 100644
+index 2d49027..75ce514 100644
 --- a/src/i18n/en.ts
 +++ b/src/i18n/en.ts
 @@ -5,6 +5,10 @@ export const en = {
@@ -3568,10 +3612,12 @@ index 2d49027..a6d9168 100644
    unknownError: 'Unknown error',
    replyRefused: "Sorry, that's beyond my current scope. Let's talk about something else.",
    messageThinkDuration: 'Thought for {count} second',
-@@ -155,6 +193,10 @@ export const en = {
+@@ -154,7 +192,11 @@ export const en = {
+   uploadStorageLimit: 'Uploaded file storage limit reached ({limit} GB). ',
    uploadDeleteFiles: 'Delete files',
    dragFileToUpload: 'Drop files here to upload',
-   dragFileDesc: 'Up to {count} files, {size} MB each',
+-  dragFileDesc: 'Up to {count} files, {size} MB each',
++  dragFileDesc: 'Up to {count} files; PDF/Word/PPT 100 MB, images 64 MB, text 32 MB',
 +  pasteTextFileFallbackName: 'Pasted text',
 +  pasteTextFileInsertOriginalButton: 'Paste original',
 +  pasteTextFileTooLongToast: 'The content is too long to paste into the input field.',
@@ -3585,7 +3631,7 @@ index 2d49027..a6d9168 100644
  } satisfies Record<keyof typeof zh, string>
 +
 diff --git a/src/i18n/zh.ts b/src/i18n/zh.ts
-index d99f058..9f35efb 100644
+index d99f058..a446575 100644
 --- a/src/i18n/zh.ts
 +++ b/src/i18n/zh.ts
 @@ -3,6 +3,10 @@ export const zh = {
@@ -3679,10 +3725,12 @@ index d99f058..9f35efb 100644
    deactivatedThinkTooltip: '先思考后回答，解决推理问题',
    thinkingSwitch: '深度思考',
    deactivatedSearchTooltip: '按需搜索网页',
-@@ -147,6 +185,10 @@ export const zh = {
+@@ -146,7 +184,11 @@ export const zh = {
+   uploadStorageLimit: '已上传文件占用空间达到上限（{limit}GB），可 ',
    uploadDeleteFiles: '删除文件',
    dragFileToUpload: '文件拖动到此处即可上传',
-   dragFileDesc: '最多 {count} 个，每个 {size}MB',
+-  dragFileDesc: '最多 {count} 个，每个 {size}MB',
++  dragFileDesc: '最多 {count} 个；PDF/Word/PPT 100MB，图片 64MB，文本 32MB',
 +  pasteTextFileFallbackName: '粘贴的文本',
 +  pasteTextFileInsertOriginalButton: '粘贴原文至输入框',
 +  pasteTextFileTooLongToast: '内容过长，无法粘贴至输入框',
@@ -3704,7 +3752,7 @@ index 91df5f9..0a812a9 100644
    <body>
      <div id="root"></div>
 diff --git a/src/services/api/client.ts b/src/services/api/client.ts
-index 5f6883c..cceb9a0 100644
+index 5f6883c..8dccc6c 100644
 --- a/src/services/api/client.ts
 +++ b/src/services/api/client.ts
 @@ -35,7 +35,9 @@ export class ApiError extends Error {
@@ -3737,7 +3785,28 @@ index 5f6883c..cceb9a0 100644
  }
  
  export const request = async (url: string, init: RequestInit): Promise<Response> => {
-@@ -171,7 +175,12 @@ export async function* streamMessage(
+@@ -101,7 +105,7 @@ export const verifyApiKey = async (apiKey: string, signal?: AbortSignal): Promis
+ 
+ /**
+  * POST /anthropic/v1/files 上传附件（不设过期时间，会话里的历史附件一直可用）。
+- * purpose 为 null 时不传该字段（图片）；purpose 必须排在 file 之前。
++ * 图片也带 purpose=user_data（官方根 Files API 要求）；purpose 必须排在 file 之前。
+  */
+ export const uploadFile = async (
+   apiKey: string,
+@@ -110,9 +114,8 @@ export const uploadFile = async (
+   signal?: AbortSignal
+ ): Promise<FileObject> => {
+   const form = new FormData()
+-  if (purpose) {
+-    form.append('purpose', purpose)
+-  }
++  // 图片仍走预缩放，但表单必须带 purpose，否则改走官方根 /files 后会被拒。
++  form.append('purpose', purpose ?? 'user_data')
+   form.append('file', purpose === null ? await resizeUploadImage(file, signal) : file)
+   const response = await request(`${ANTHROPIC_BASE_URL}/files`, {
+     method: 'POST',
+@@ -171,7 +174,12 @@ export async function* streamMessage(
        }
      }
      if (isErrorBody(payload)) {
@@ -3793,7 +3862,7 @@ index e88105c..78a2fa9 100644
  export type FileErrorCode = 'fileIdMissing' | 'fileDataMissing' | 'invalidFileId'
  
 diff --git a/src/services/attachments.ts b/src/services/attachments.ts
-index 610d5bf..b4eb073 100644
+index 610d5bf..8563752 100644
 --- a/src/services/attachments.ts
 +++ b/src/services/attachments.ts
 @@ -12,11 +12,15 @@ import { ACCEPT_FILE_EXTS } from './uploadExts.js'
@@ -3815,6 +3884,15 @@ index 610d5bf..b4eb073 100644
  /** 同时上传的文件数 */
  const MAX_CONCURRENT = 3
  
+@@ -31,7 +35,7 @@ export const isAcceptedExt = (name: string) => ACCEPTED_EXTS.includes(getFileExt
+ /** 需要服务端做版面解析的文档；其余非图片文件（纯文本、代码、表格、电子书）无需解析 */
+ const LAYOUT_RECOGNITION_EXTS = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx'])
+ 
+-/** 上传时的 purpose：图片不传，PDF 与 Word、PPT 做版面解析，其余按 user_data 上传 */
++/** 上传时的 purpose：图片按 user_data（但仍先预缩放），PDF 与 Word、PPT 做版面解析，其余按 user_data 上传 */
+ export const getUploadPurpose = (name: string, isImage: boolean): FilePurpose | null => {
+   if (isImage) {
+     return null
 @@ -39,11 +43,16 @@ export const getUploadPurpose = (name: string, isImage: boolean): FilePurpose |
    return LAYOUT_RECOGNITION_EXTS.has(getFileExt(name)) ? 'rich_layout_recognition' : 'user_data'
  }
@@ -4290,10 +4368,10 @@ index 8540bb1..6271eb2 100644
      const key =
        diff <= 0
 diff --git a/src/services/chat/store.ts b/src/services/chat/store.ts
-index 0d28fa5..949c3e8 100644
+index 0d28fa5..d04a3b4 100644
 --- a/src/services/chat/store.ts
 +++ b/src/services/chat/store.ts
-@@ -2,7 +2,13 @@ import { create } from 'zustand'
+@@ -2,11 +2,18 @@ import { create } from 'zustand'
  import { createId } from '../../utils/id.js'
  import { ApiError, streamMessage } from '../api/client.js'
  import type { ChatModel, CreateMessageRequest } from '../api/types.js'
@@ -4308,7 +4386,12 @@ index 0d28fa5..949c3e8 100644
  import {
    cancelUpload,
    checkImageFileIds,
-@@ -25,6 +31,7 @@ import {
+   describeUploadError,
++  MAX_COUNT,
+   uploadAttachment,
+   useUploads,
+ } from '../attachments.js'
+@@ -25,6 +32,7 @@ import {
    applyEvent,
    canContinueReply,
    getContextRounds,
@@ -4316,7 +4399,7 @@ index 0d28fa5..949c3e8 100644
    settleReply,
    toRequestMessages,
  } from './reply.js'
-@@ -50,6 +57,15 @@ const SAFETY_CHECK = { level: 'high' } as const
+@@ -50,6 +58,15 @@ const SAFETY_CHECK = { level: 'high' } as const
  const FILE_RETRY_LIMIT = 2
  /** 退避基数，第 n 次重试等待 2^n 倍；连续失败达到上限就放弃，把原始报错展示出来 */
  const FILE_RETRY_BASE_DELAY = 1000
@@ -4332,7 +4415,7 @@ index 0d28fa5..949c3e8 100644
  
  /** 阅读链接始终开启，智能搜索开关控制是否另行声明搜索工具（含边想边搜）。 */
  const serverTools = (search: boolean): CreateMessageRequest['tools'] => {
-@@ -103,6 +119,22 @@ const getSession = (id: string) => {
+@@ -103,6 +120,22 @@ const getSession = (id: string) => {
    return Object.hasOwn(cache, id) ? cache[id] : undefined
  }
  
@@ -4355,7 +4438,16 @@ index 0d28fa5..949c3e8 100644
  const getStreamController = (id: string) => {
    const streams = get().streaming
    return Object.hasOwn(streams, id) ? streams[id] : undefined
-@@ -185,7 +217,7 @@ const updateReply = (sessionId: string, reply: AssistantMessage) =>
+@@ -115,6 +148,8 @@ const sessionAccess = new Map<string, number>()
+ const unsavedSessions = new Set<string>()
+ /** 保存失败时保留原件，重试成功后才释放。 */
+ const pendingFiles = new Map<string, db.StoredFile[]>()
++/** 未打开会话的改名先只写内存；失败后留在这里，等「重试」再写。 */
++const pendingRenames = new Map<string, string>()
+ const deletingSessions = new Set<string>()
+ const deletionTasks = new Set<Promise<boolean>>()
+ const streamFlushes = new Map<string, () => void>()
+@@ -185,7 +220,7 @@ const updateReply = (sessionId: string, reply: AssistantMessage) =>
      ),
    }))
  
@@ -4364,7 +4456,7 @@ index 0d28fa5..949c3e8 100644
    const session = getSession(sessionId)
    if (session) {
      unsavedSessions.add(sessionId)
-@@ -213,7 +245,22 @@ const persist = (sessionId: string) => {
+@@ -213,7 +248,22 @@ const persist = (sessionId: string) => {
            trimSessionCache()
          }
        })
@@ -4388,26 +4480,170 @@ index 0d28fa5..949c3e8 100644
          db.reportStorageError('save session')(error)
          if (epoch === historyEpoch && getSession(sessionId)) {
            set((state) => ({
-@@ -224,8 +271,10 @@ const persist = (sessionId: string) => {
+@@ -224,9 +274,14 @@ const persist = (sessionId: string) => {
    }
  }
  
 -export const retrySaveSessions = () => {
 +export const retrySaveSessions = async (): Promise<void> => {
    if (!get().importingHistory) {
+-    unsavedSessions.forEach(persist)
 +    // 连接被关闭时原版会一直复用失效句柄；重试前丢弃它，让下一次写入重新打开。
 +    await db.forgetClosedHandle()
-     unsavedSessions.forEach(persist)
-   }
- }
-@@ -294,6 +343,38 @@ const settleInterrupted = (session: Session): Session => {
++    for (const [id, title] of [...pendingRenames]) {
++      await writePendingRename(id, title)
++    }
++    unsavedSessions.forEach((id) => persist(id))
    }
  }
  
+@@ -294,6 +349,194 @@ const settleInterrupted = (session: Session): Session => {
+   }
+ }
+ 
++type StoredMessage = Session['messages'][number]
++
 +/**
-+ * 把 DSH 侧点过「导入到网页版」的会话写进本地存储。
-+ * 这是一次性复制：导入完两边各管各的。
++ * 同一消息编号的 DSH 回答可能只是变长：一次提问后的多条 assistant 记录会合并成一条。
++ * 只有本地内容是新快照的前缀（思考/正文块原样保留、末尾续写）才更新；否则视为本地分岔，整条保留。
 + */
++const mergeImportedMessage = (
++  local: StoredMessage,
++  incoming: StoredMessage
++): { message: StoredMessage; changed: boolean } | undefined => {
++  if (local.role !== incoming.role) {
++    return undefined
++  }
++  if (local.role === 'user' && incoming.role === 'user') {
++    const sameFiles =
++      JSON.stringify(local.files) === JSON.stringify(incoming.files)
++    return local.content === incoming.content && sameFiles
++      ? { message: local, changed: false }
++      : undefined
++  }
++  if (local.role === 'assistant' && incoming.role === 'assistant') {
++    if (incoming.blocks.length < local.blocks.length) {
++      return undefined
++    }
++    const blocks = [...local.blocks]
++    let changed = false
++    for (let index = 0; index < local.blocks.length; index += 1) {
++      const current = local.blocks[index]
++      const next = incoming.blocks[index]
++      if (current === undefined || next === undefined || current.type !== next.type) {
++        return undefined
++      }
++      if (current.type === 'thinking' && next.type === 'thinking') {
++        if (next.thinking === current.thinking) continue
++        if (!next.thinking.startsWith(current.thinking)) return undefined
++        blocks[index] = { type: 'thinking', thinking: next.thinking }
++        changed = true
++      } else if (current.type === 'text' && next.type === 'text') {
++        if (next.text === current.text) continue
++        if (!next.text.startsWith(current.text)) return undefined
++        blocks[index] = { type: 'text', text: next.text }
++        changed = true
++      } else {
++        return undefined
++      }
++    }
++    if (incoming.blocks.length > local.blocks.length) {
++      blocks.push(...incoming.blocks.slice(local.blocks.length))
++      changed = true
++    }
++    return { message: changed ? { ...local, blocks } : local, changed }
++  }
++  return undefined
++}
++
++/**
++ * 只有本地消息序列是快照的完整前缀时才更新/追加。
++ * 本地有过续聊、分支、删除或本地改过正文时消息 ID 或内容对不上，一律保留本地。
++ * 本地标题、置顶等元数据也始终保留。
++ */
++const mergeImportedSession = (
++  local: Session,
++  incoming: Session
++): Session | undefined => {
++  const prefix = local.messages.length <= incoming.messages.length &&
++    local.messages.every(
++      (message, index) => message.id === incoming.messages[index].id
++    )
++  if (!prefix) {
++    return undefined
++  }
++  const messages: StoredMessage[] = []
++  let changed = false
++  for (let index = 0; index < local.messages.length; index += 1) {
++    const merged = mergeImportedMessage(local.messages[index], incoming.messages[index])
++    if (merged === undefined) {
++      return undefined
++    }
++    messages.push(merged.message)
++    if (merged.changed) changed = true
++  }
++  const tail = incoming.messages.slice(local.messages.length)
++  if (tail.length === 0) {
++    if (!changed && (incoming.importId === undefined || incoming.importId === local.importId)) {
++      return undefined
++    }
++    return { ...local, messages, updatedAt: Math.max(local.updatedAt, incoming.updatedAt), importId: incoming.importId }
++  }
++  const lastLocal = messages.length - 1
++  if (lastLocal >= 0) {
++    // 尾部第一条挂在本地最后一条下面，必须把父节点的选中子节点指过去，否则树上不可见。
++    messages[lastLocal] = { ...messages[lastLocal], selectedChildId: tail[0].id }
++  }
++  messages.push(...tail)
++  return {
++    ...local,
++    rootMessageId:
++      local.messages.length === 0
++        ? (incoming.rootMessageId ?? tail[0]?.id ?? null)
++        : local.rootMessageId,
++    messages,
++    updatedAt: Math.max(local.updatedAt, incoming.updatedAt),
++    importId: incoming.importId,
++  }
++}
++
++const IMPORT_RECEIPTS_KEY = 'chat-demo:import-receipts'
++const IMPORT_RECEIPT_LIMIT = 300
++
++const readImportReceipts = (): Record<string, number> => {
++  try {
++    const parsed = JSON.parse(localStorage.getItem(IMPORT_RECEIPTS_KEY) ?? '{}')
++    return parsed !== null && typeof parsed === 'object' ? parsed : {}
++  } catch {
++    return {}
++  }
++}
++
++const hasImportReceipt = (importId: string): boolean =>
++  importId in readImportReceipts()
++
++/**
++ * 已处理过的导入操作独立回执：即使确认丢失、用户随后删除了本地会话，
++ * 下一次启动收到同一操作也不会把它重新写回来。
++ */
++const markImportReceipt = (importId: string | undefined) => {
++  if (importId === undefined) return
++  try {
++    const receipts = readImportReceipts()
++    receipts[importId] = Date.now()
++    const keys = Object.keys(receipts)
++    if (keys.length > IMPORT_RECEIPT_LIMIT) {
++      keys
++        .sort((left, right) => receipts[left] - receipts[right])
++        .slice(0, keys.length - IMPORT_RECEIPT_LIMIT)
++        .forEach((key) => delete receipts[key])
++    }
++    localStorage.setItem(IMPORT_RECEIPTS_KEY, JSON.stringify(receipts))
++  } catch {
++    // 本地存储不可用时退回会话内 importId 保护。
++  }
++}
++
 +const importPendingDsh = async (): Promise<void> => {
 +  try {
 +    // 和 ZIP 导入共用同一把跨文档锁，避免面板重开时旧暂存与正在提交的导入交错。
@@ -4417,19 +4653,36 @@ index 0d28fa5..949c3e8 100644
 +      const pending = (await response.json()) as Session[]
 +      if (!Array.isArray(pending) || pending.length === 0) return
 +      for (const session of pending) {
-+        // 同一 ID 已有且不比快照旧时保留本地：续聊/重命名比旧快照新，覆盖会把它们吞掉。
-+        // 本地更旧则说明用户后来在 DSH 里继续过，重新导入时允许更新。
-+        // 两种情况都确认暂存，避免旧快照每次启动都重放。
-+        const existing = await db.loadSession(session.id)
-+        if (existing !== undefined && existing.updatedAt >= session.updatedAt) {
++        if (session.importId !== undefined && hasImportReceipt(session.importId)) {
 +          continue
 +        }
-+        await db.saveSession(session)
++        // 快照是线性消息；先补 parent/selectedChild 链，才能和本地已规范化的记录比较前缀。
++        const incoming = normalizeSession(session)
++        const existing = await db.loadSession(session.id)
++        if (existing === undefined) {
++          await db.saveSession(incoming)
++          markImportReceipt(session.importId)
++          continue
++        }
++        // 同一 ID 已有本地记录：仅当本地消息是快照的完整前缀（本地没有续聊/分支/改正文）
++        // 才追加 DSH 新增的尾部；其余情况保留本地。标题、置顶始终以本地为准。
++        const merged = mergeImportedSession(existing, incoming)
++        if (merged !== undefined) {
++          await db.saveSession(merged)
++        }
++        markImportReceipt(session.importId)
 +      }
++      // 带操作标识确认：旧面板/旧确认不会误删同一会话后来生成的新暂存。
 +      await fetch('/webchat/api/import/ack', {
 +        method: 'POST',
 +        headers: { 'content-type': 'application/json' },
-+        body: JSON.stringify({ ids: pending.map((session) => session.id) }),
++        body: JSON.stringify({
++          ids: pending.map((session) => session.id),
++          imports: pending.map((session) => ({
++            id: session.id,
++            importId: session.importId,
++          })),
++        }),
 +      })
 +    })
 +  } catch {
@@ -4439,7 +4692,7 @@ index 0d28fa5..949c3e8 100644
  export const initChat = (): Promise<void> => {
    if (get().ready) {
      return Promise.resolve()
-@@ -305,6 +386,7 @@ export const initChat = (): Promise<void> => {
+@@ -305,6 +548,7 @@ export const initChat = (): Promise<void> => {
    set({ initError: false })
    initTask = (async () => {
      try {
@@ -4447,7 +4700,62 @@ index 0d28fa5..949c3e8 100644
        const summaries = await db.loadSessionSummaries()
        if (epoch === historyEpoch) {
          set({ ready: true, sessions: sortSessions(summaries) })
-@@ -483,6 +565,92 @@ export const renameSession = (id: string, title: string) => {
+@@ -462,6 +706,43 @@ export const selectSession = (id: string) => {
+   }
+ }
+ 
++const writePendingRename = async (id: string, title: string): Promise<void> => {
++  let failure: unknown
++  try {
++    await db.renameSession(id, title)
++  } catch (error) {
++    failure = error
++    if (error instanceof DOMException && error.name === 'InvalidStateError') {
++      // 未打开的会话重命名走独立写路径；连接失效时也重开一次，避免界面改名成功但没落盘。
++      await db.forgetClosedHandle()
++      try {
++        await db.renameSession(id, title)
++        failure = undefined
++      } catch (retryError) {
++        failure = retryError
++      }
++    }
++  }
++  if (failure !== undefined) {
++    pendingRenames.set(id, title)
++    db.reportStorageError('rename session')(failure)
++    set((state) => ({
++      sessionSaveErrors: { ...state.sessionSaveErrors, [id]: true },
++    }))
++    return
++  }
++  if (pendingRenames.get(id) === title) {
++    pendingRenames.delete(id)
++  }
++  if (!pendingRenames.has(id)) {
++    set((state) => ({
++      sessionSaveErrors: Object.fromEntries(
++        Object.entries(state.sessionSaveErrors).filter(([key]) => key !== id)
++      ),
++    }))
++  }
++}
++
+ export const renameSession = (id: string, title: string) => {
+   if (get().importingHistory || deletingSessions.has(id)) {
+     return
+@@ -474,15 +755,102 @@ export const renameSession = (id: string, title: string) => {
+     updateSession(id, (session) => ({ ...session, title }))
+     persist(id)
+   } else {
++    pendingRenames.set(id, title)
+     set((state) => ({
+       sessions: state.sessions.map((session) =>
+         session.id === id ? { ...session, title } : session
+       ),
+     }))
+-    void db.renameSession(id, title).catch(db.reportStorageError('rename session'))
++    void writePendingRename(id, title)
    }
  }
  
@@ -4540,7 +4848,18 @@ index 0d28fa5..949c3e8 100644
  /**
   * 删除会话；本地原件仅在没有其他会话引用时清理。远端文件不删：导入、编辑、重新生成都会复用同一个附件，
   * 同一服务端文件可能被多个会话引用，不维护引用计数。
-@@ -594,7 +762,7 @@ export const sendMessage = (targetSessionId: string | null) => {
+@@ -560,6 +928,10 @@ export const sendMessage = (targetSessionId: string | null) => {
+     return false
+   }
+   const { text, files } = prepared
++  // 切换分支后草稿附件与当前可见分支可能叠加超过上限，发送时做最终校验。
++  if ((targetSessionId === null ? 0 : countSessionFiles(targetSessionId)) + files.length > MAX_COUNT) {
++    return false
++  }
+   const now = Date.now()
+   let sessionId = targetSessionId
+   if (
+@@ -594,7 +966,7 @@ export const sendMessage = (targetSessionId: string | null) => {
      id: createId(),
      role: 'user',
      content: text,
@@ -4549,7 +4868,7 @@ index 0d28fa5..949c3e8 100644
        id,
        serverId,
        // 草稿附件已上传成功，每张图片都在上传前检查过长边，超限的已缩小。
-@@ -603,6 +771,7 @@ export const sendMessage = (targetSessionId: string | null) => {
+@@ -603,6 +975,7 @@ export const sendMessage = (targetSessionId: string | null) => {
        size,
        isImage,
        mimeType,
@@ -4557,7 +4876,7 @@ index 0d28fa5..949c3e8 100644
      })),
      createdAt: now,
    }
-@@ -978,10 +1147,77 @@ const waitForRetry = (attempt: number, signal: AbortSignal) =>
+@@ -978,10 +1351,77 @@ const waitForRetry = (attempt: number, signal: AbortSignal) =>
      signal.addEventListener('abort', onAbort, { once: true })
    })
  
@@ -4635,7 +4954,7 @@ index 0d28fa5..949c3e8 100644
   */
  const streamReply = async (sessionId: string, initial: AssistantMessage, request: Request) => {
    const controller = new AbortController()
-@@ -997,6 +1233,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -997,6 +1437,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
      updateReply(sessionId, reply)
    }
    streamFlushes.set(sessionId, flush)
@@ -4644,7 +4963,7 @@ index 0d28fa5..949c3e8 100644
  
    try {
      for (let attempt = 0; ; attempt += 1) {
-@@ -1027,10 +1265,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1027,10 +1469,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
              system: SYSTEM_PROMPT,
              messages,
              thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
@@ -4663,7 +4982,7 @@ index 0d28fa5..949c3e8 100644
            controller.signal
          )
          const blockIndexes = new Map<number, number>()
-@@ -1056,6 +1298,15 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1056,6 +1502,15 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
            }
          }
          reply = settleReply(reply, 'done', Date.now())
@@ -4679,7 +4998,7 @@ index 0d28fa5..949c3e8 100644
          break
        } catch (error) {
          if (controller.signal.aborted) {
-@@ -1071,6 +1322,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1071,6 +1526,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
            })
            break
          }
@@ -4692,7 +5011,7 @@ index 0d28fa5..949c3e8 100644
          // 附件失效：重新补传后重发。收到过内容块（含丢弃的客户端工具）后不自动重发。
          if (
            attempt < FILE_RETRY_LIMIT &&
-@@ -1088,12 +1345,65 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
+@@ -1088,12 +1549,65 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
            // 已收到 message_delta 的结束原因，只是缺了结尾的 message_stop
            reply = settleReply(reply, 'done', Date.now())
          } else if (error instanceof ApiError) {
@@ -4765,7 +5084,7 @@ index 0d28fa5..949c3e8 100644
            reply = settleReply(reply, 'error', Date.now(), {
              kind: 'protocol',
 diff --git a/src/services/chat/types.ts b/src/services/chat/types.ts
-index 932ff04..36f63c7 100644
+index 932ff04..170f48d 100644
 --- a/src/services/chat/types.ts
 +++ b/src/services/chat/types.ts
 @@ -25,6 +25,8 @@ export type FileAttachment = {
@@ -4798,12 +5117,14 @@ index 932ff04..36f63c7 100644
    error?: {
      /** upload：发送前补传附件失败，请求没有发出 */
      kind: ApiErrorKind | 'upload'
-@@ -116,10 +125,12 @@ export type Session = {
+@@ -116,10 +125,14 @@ export type Session = {
    messages: Message[]
    /** undefined 表示线性消息列表；null 表示空会话。 */
    rootMessageId?: string | null
 +  /** 置顶显示在会话列表顶部。 */
 +  pinned?: boolean
++  /** 最近一次已应用到本会话的 DSH 导入操作标识；用于区分宿主重放和再次导入。 */
++  importId?: string
  }
  
  /** 会话列表元数据；消息只在打开会话时加载。 */
@@ -4812,7 +5133,7 @@ index 932ff04..36f63c7 100644
  
  /** 显式提取字段，避免将完整会话的消息带进列表。 */
  export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
-@@ -127,4 +138,5 @@ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
+@@ -127,4 +140,5 @@ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
    title: session.title,
    createdAt: session.createdAt,
    updatedAt: session.updatedAt,
