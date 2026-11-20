@@ -17,13 +17,13 @@
 | 界面 | `client.js` | 左侧面板两个槽位（`main` + `sidebar.panellist`）与会话右键菜单贡献（`contextMenus`） |
 | 前端 | `webview/dist` | 官方 chat-demo 构建产物，随仓库分发 |
 
-上游基准：`5d5dd754ebc1948e977ddb880a9eb5aa25f37b4c`（chat-demo v0.1.1，MIT）。补丁在
+上游基准：`8ad7b56e196b87d8a3215dc09476d6d146ad3f0e`（chat-demo v0.1.3，MIT）。补丁在
 `webview/patches/0001-dsh-integration.patch`：请求落点、品牌字标、隐藏 API Key 输入、启动时取走导入、
 会话搜索（侧栏与收起态都有入口，按标题与正文/思考检索，标题命中单独成行，见 `src/components/sider/SessionSearch.tsx`）、
 右侧轮次进度条（每条提问一根刻度，悬停预览、点击跳转，见 `src/components/messages/TurnRail.tsx`）、
 会话置顶（`Session.pinned`，列表顶部单独分组；菜单入口见 `src/components/sider/SessionItem.tsx`）。
 
-改前端要跑 `pwsh scripts/build-webview.ps1`：它会先 `git checkout` 上游、`git clean -fd`、再 `git apply` 补丁，
+改前端要跑 `pwsh scripts/build-webview.ps1`：它会先 fetch 上游、`reset --hard`、`clean -fd`、再 `git apply` 补丁，
 所以**不要在 vendor 里直接留改动**——改完先 `git add -A` 生成新补丁，再跑构建，否则改动会被重置掉。
 
 ## 命令
@@ -61,6 +61,15 @@ pwsh scripts/build-webview.ps1     # 克隆上游、打补丁、构建、同步 
 - 凭据：`resolveUpstreamAuth` 先取 `deepseekAccount.resolveToken`（账户登录，头 `x-dsh-auth-token`）；
   没有账户登录时读 DSH 模型设置里的 `apiKeyEnv`（默认 `DEEPSEEK_API_KEY`，经 `credentials.resolve` 或环境变量），
   用 `x-api-key` 发往官方 Messages/Files。两条路由都要覆盖，401 表示两者都没有。
+- 大附件/长文本：请求里的 `safety_check` / `tools` / `title` 任一存在都会进入扩展模式，单次输入上限 32k tokens；
+  命中 400 `user input too long ... max 32768` 时前端去掉扩展字段用普通模式重发。降级成功后单独补一次标题：
+  提问（≤1000 字符）+ 文件名 + 粘贴原文截断（≤3000）+ 主回复摘要（≤1000），标题落盘；普通短消息不降级。
+- 附件上限：按官方网页版，PDF/Word/PPT 100MB、图片 64MB、文本/表格/电子书 32MB；草稿与单个对话累计
+  最多 20 个附件，超出显示官方文案。
+- 附件上传：`/webchat/anthropic/v1/files` 的 POST/DELETE 转发到官方 Files API 根路径 `/files`
+  （Anthropic 兼容路径网关对 64MiB 以上请求返回 413）；请求体流式转发，实测 93MB PDF 上传成功。
+- 8MiB 文档文字：上传阶段文本文件超限显示「文件内容过长」；发送阶段
+  `Documents are too large ... exceeds 8 MiB` 用消息级 hint「文件内容过长」。
 - 语音：`POST /webchat/v1/tools/tts` 返回 `audio/pcm`（24kHz/16bit/单声道），`/asr` 返回 `{text,duration_ms}`；
   两条都必须经宿主转发，浏览器不带凭据。
   麦克风：DSH 桌面只给主框架授权（`lib/main.js` 的 `installMicrophonePermissions` 检查 `isMainFrame`），
