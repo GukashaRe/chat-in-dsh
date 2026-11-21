@@ -294,15 +294,73 @@ window.__ModuleLoader__.load({
       })
     }
 
+    /**
+     * macOS 的红绿灯悬浮在窗口内容上方。DSH 只在部分入口页预留了
+     * --dsh-frame-top-clearance；插件面板是全局 main panel，需要自己避开。
+     * 仅当面板贴住窗口左边（DSH 侧栏收起/抽屉）时让出这段高度；
+     * 如果 DSH 已经通过 main panel padding 让过，则不重复叠加。
+     */
+    function panelChromeInset(node) {
+      const root = document.documentElement
+      if (root.dataset.platform !== 'darwin' || root.hasAttribute('data-fullscreen')) {
+        return 0
+      }
+      const parent = node?.parentElement
+      if (!parent || parent.getBoundingClientRect().left > 1) {
+        return 0
+      }
+      const clearance = Number.parseFloat(
+        getComputedStyle(root).getPropertyValue('--dsh-frame-top-clearance')
+      )
+      const existing = Number.parseFloat(getComputedStyle(parent).paddingTop) || 0
+      return Math.max(0, (Number.isFinite(clearance) ? clearance : 48) - existing)
+    }
+
     /** 左侧面板：完整的网页版，带它自己的会话列表。 */
     function Panel() {
       const [token, setToken] = React.useState(importBus.token)
+      const [topInset, setTopInset] = React.useState(0)
+      const ref = React.useRef(null)
       React.useEffect(() => {
         const listener = (value) => setToken(value)
         importBus.listeners.add(listener)
         return () => importBus.listeners.delete(listener)
       }, [])
-      return h('div', { style: { height: '100%', minHeight: 320, display: 'flex' } },
+      React.useEffect(() => {
+        const node = ref.current
+        if (!node) return undefined
+        const parent = node.parentElement
+        const update = () => setTopInset(panelChromeInset(node))
+        update()
+        window.addEventListener('resize', update)
+        const resizeObserver = typeof ResizeObserver === 'function' && parent
+          ? new ResizeObserver(update)
+          : undefined
+        resizeObserver?.observe(parent)
+        const mutation = new MutationObserver(update)
+        mutation.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-platform', 'data-fullscreen'],
+        })
+        if (parent) {
+          mutation.observe(parent, { attributes: true, attributeFilter: ['style', 'class'] })
+        }
+        return () => {
+          window.removeEventListener('resize', update)
+          resizeObserver?.disconnect()
+          mutation.disconnect()
+        }
+      }, [])
+      return h('div', {
+        ref,
+        style: {
+          height: '100%',
+          minHeight: 320,
+          display: 'flex',
+          boxSizing: 'border-box',
+          paddingTop: topInset,
+        },
+      },
         h('div', { style: { flex: 1, minWidth: 0 } }, h(PanelFrame, { key: token, reloadToken: token })))
     }
 

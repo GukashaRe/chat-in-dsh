@@ -62,6 +62,16 @@
 - 导入错误按原因区分：归档格式/版本错误用 `BackupError.key`；`QuotaExceededError` 提示存储空间不足；
   `NotReadableError` 提示重新选择 ZIP；未知错误用中性重试提示。不要把具体对话内容写进错误。
 
+## 桌面壳与旧版 DSH
+
+- `engines.dsh` / 可选 peer 最低兼容 `0.1.7-alpha.1`；不能只靠降低版本号，插件必须在新旧宿主都能挂载。
+- 新版宿主用 `contextMenus` 注册会话导入；旧版没有该服务时，用宿主自带的
+  `sidebar.workspaces.session.menu.item` 渲染同一条导入按钮。两个入口共用一次暂存请求，
+  `contextMenus` 迟到或卸载时切换注册，不会同时出现两份。
+- macOS 红绿灯悬浮在窗口内容上方。DSH 只在部分入口页预留
+  `--dsh-frame-top-clearance`；插件作为 global main panel，在面板贴住窗口左边且非全屏时，
+  用该高度减去 DSH main panel 已有的 padding，避免红绿灯压住网页版侧栏。
+
 ## 前端构建
 
 上游前端不能用“直接改 vendor”作为交付方式。流程固定：
