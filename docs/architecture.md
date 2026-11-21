@@ -38,6 +38,7 @@
 
 ## 存储与导入
 
+- 左侧面板由 `slots` 和 `layout` 注册。会话导入优先接入 `contextMenus`；旧宿主在 `sidebar.workspaces.session.menu.item` 渲染宿主自带的菜单按钮。两个入口共用同一次暂存请求，菜单服务就绪或卸载时切换注册。
 - 主数据库：chat-demo IndexedDB，**保持 v11**，不要无必要升级。
 - 导入回执：独立数据库 `chat-demo-import-receipts`，避免主库升级阻塞多个面板。
 - 导入操作：

@@ -50,11 +50,19 @@
     }
   },
   "scripts": {
-    "test": "node --test test/protocol.test.js test/dsh-import.test.js",
+    "test": "node --test test/*.test.js",
     "build:webview": "pwsh scripts/build-webview.ps1"
   },
   "engines": {
     "node": ">=22.12",
-    "dsh": ">=0.2.2-0 <0.3.0-0"
+    "dsh": ">=0.1.7-alpha.1 <0.3.0-0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": ">=0.1.7-alpha.1 <0.3.0-0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
   }
 }
