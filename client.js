@@ -74,13 +74,225 @@ window.__ModuleLoader__.load({
       for (const listener of importBus.listeners) listener(importBus.token)
     }
 
-    const frame = (key, src, title) => h('iframe', {
-      key,
-      src,
-      title,
-      allow: 'clipboard-write; microphone',
-      style: { width: '100%', height: '100%', border: 'none', display: 'block', background: '#fff' },
-    })
+    // 浏览器式页面缩放：官方网页版由 Chromium 自带 Ctrl+滚轮/Ctrl+± 缩放；
+    // DSH 的 Electron 内容区没有这层行为，所以在面板 iframe 内补上，不加任何设置界面。
+    // v2 key：旧实现把“没有存储值”误判成 0（再钳到 80%），换 key 让首次安装回到 100%。
+    const PANEL_ZOOM_KEY = 'chat-in-dsh:panel-zoom:v2'
+    const PANEL_ZOOM_LEVELS = [25, 33, 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400, 500]
+    const PANEL_ZOOM_DEFAULT_INDEX = PANEL_ZOOM_LEVELS.indexOf(100)
+    const nearestZoomIndex = (value) => {
+      let best = PANEL_ZOOM_DEFAULT_INDEX
+      let bestDistance = Number.POSITIVE_INFINITY
+      for (let index = 0; index < PANEL_ZOOM_LEVELS.length; index += 1) {
+        const distance = Math.abs(PANEL_ZOOM_LEVELS[index] - value)
+        if (distance < bestDistance) {
+          best = index
+          bestDistance = distance
+        }
+      }
+      return best
+    }
+    const readPanelZoomIndex = () => {
+      try {
+        const raw = window.localStorage.getItem(PANEL_ZOOM_KEY)
+        if (raw === null) return PANEL_ZOOM_DEFAULT_INDEX
+        const value = Number(raw)
+        if (!Number.isFinite(value)) return PANEL_ZOOM_DEFAULT_INDEX
+        return nearestZoomIndex(value)
+      } catch (_error) {
+        return PANEL_ZOOM_DEFAULT_INDEX
+      }
+    }
+    const writePanelZoom = (value) => {
+      try {
+        window.localStorage.setItem(PANEL_ZOOM_KEY, String(value))
+      } catch (_error) {
+        // 存储不可用时只影响下次打开，不影响本次缩放。
+      }
+    }
+    const installPanelZoom = (iframe) => {
+      let cleanup = null
+      const attach = () => {
+        cleanup?.()
+        cleanup = null
+        try {
+          const win = iframe.contentWindow
+          const doc = iframe.contentDocument
+          if (!win || !doc) return
+          let zoomIndex = readPanelZoomIndex()
+          let bubble = null
+          let bubbleLabel = null
+          let bubbleTimer = null
+          const parentDoc = window.document
+          const hideBubble = () => {
+            if (bubble !== null) {
+              bubble.style.opacity = '0'
+              bubble.style.transform = 'translateX(-50%) scale(.98)'
+              bubble.style.pointerEvents = 'none'
+            }
+          }
+          const showBubble = () => {
+            try {
+              if (bubble === null) {
+                bubble = parentDoc.createElement('div')
+                bubble.setAttribute('role', 'status')
+                bubble.setAttribute('aria-live', 'polite')
+                bubble.style.cssText = [
+                  'position:fixed',
+                  'z-index:2147483647',
+                  'display:flex',
+                  'align-items:center',
+                  'gap:8px',
+                  'width:max-content',
+                  'max-width:calc(100vw - 32px)',
+                  'box-sizing:border-box',
+                  'padding:7px 12px 7px 16px',
+                  'border:1px solid #dadce0',
+                  'border-radius:12px',
+                  'background:#fff',
+                  'color:#1f1f1f',
+                  'font:13px/1.2 system-ui,sans-serif',
+                  'box-shadow:0 2px 6px rgba(60,64,67,.15)',
+                  'opacity:0',
+                  'transform:translateX(-50%) scale(.96)',
+                  'transition:opacity .15s ease,transform .15s ease',
+                  'pointer-events:none',
+                ].join(';')
+                bubbleLabel = parentDoc.createElement('span')
+                bubbleLabel.style.cssText = 'min-width:40px;font-weight:500;text-align:left'
+                const button = (text, label, onClick, extra) => {
+                  const element = parentDoc.createElement('button')
+                  element.type = 'button'
+                  element.textContent = text
+                  element.setAttribute('aria-label', label)
+                  element.style.cssText = [
+                    'font:inherit',
+                    'border:0',
+                    'background:none',
+                    'color:#1f1f1f',
+                    'cursor:pointer',
+                    'padding:0 4px',
+                    'font-size:20px',
+                    'line-height:1',
+                    ...extra,
+                  ].join(';')
+                  element.addEventListener('click', onClick)
+                  return element
+                }
+                const minus = button('−', '缩小', (event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setZoomIndex(zoomIndex - 1)
+                }, [])
+                const plus = button('+', '放大', (event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setZoomIndex(zoomIndex + 1)
+                }, [])
+                const reset = parentDoc.createElement('button')
+                reset.type = 'button'
+                reset.textContent = navigator.language.toLowerCase().startsWith('zh') ? '重置' : 'Reset'
+                reset.setAttribute('aria-label', '重置缩放')
+                reset.style.cssText = [
+                  'font:inherit',
+                  'margin-left:4px',
+                  'padding:6px 12px',
+                  'border:1px solid #a8c7fa',
+                  'border-radius:999px',
+                  'background:#fff',
+                  'color:#0b57d0',
+                  'cursor:pointer',
+                  'font-size:13px',
+                ].join(';')
+                reset.addEventListener('click', (event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setZoomIndex(PANEL_ZOOM_DEFAULT_INDEX)
+                })
+                bubble.append(bubbleLabel, minus, plus, reset)
+                ;(parentDoc.body ?? parentDoc.documentElement).appendChild(bubble)
+              }
+              const rect = iframe.getBoundingClientRect()
+              if (rect.width > 0) {
+                bubble.style.left = `${rect.left + rect.width / 2}px`
+                bubble.style.top = `${Math.max(8, rect.top + 12)}px`
+              }
+              bubbleLabel.textContent = `${PANEL_ZOOM_LEVELS[zoomIndex]}%`
+              bubble.style.opacity = '1'
+              bubble.style.transform = 'translateX(-50%) scale(1)'
+              bubble.style.pointerEvents = 'auto'
+              if (bubbleTimer !== null) clearTimeout(bubbleTimer)
+              bubbleTimer = setTimeout(hideBubble, 2600)
+            } catch (_error) {
+              // 浮层只是反馈，失败不影响缩放。
+            }
+          }
+          const apply = (withBubble) => {
+            const percent = PANEL_ZOOM_LEVELS[zoomIndex]
+            doc.documentElement.style.zoom = percent === 100 ? '' : `${percent}%`
+            writePanelZoom(percent)
+            if (withBubble) showBubble()
+          }
+          const setZoomIndex = (next) => {
+            zoomIndex = Math.min(PANEL_ZOOM_LEVELS.length - 1, Math.max(0, next))
+            apply(true)
+          }
+          const onWheel = (event) => {
+            if (!event.ctrlKey && !event.metaKey) return
+            event.preventDefault()
+            event.stopPropagation()
+            setZoomIndex(zoomIndex + (event.deltaY < 0 ? 1 : -1))
+          }
+          const onKeyDown = (event) => {
+            if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+            if (event.key === '+' || event.key === '=') setZoomIndex(zoomIndex + 1)
+            else if (event.key === '-' || event.key === '_') setZoomIndex(zoomIndex - 1)
+            else if (event.key === '0') setZoomIndex(PANEL_ZOOM_DEFAULT_INDEX)
+            else return
+            event.preventDefault()
+            event.stopPropagation()
+          }
+          doc.addEventListener('wheel', onWheel, { capture: true, passive: false })
+          doc.addEventListener('keydown', onKeyDown, { capture: true })
+          apply(false)
+          cleanup = () => {
+            doc.removeEventListener('wheel', onWheel, { capture: true })
+            doc.removeEventListener('keydown', onKeyDown, { capture: true })
+            if (bubbleTimer !== null) clearTimeout(bubbleTimer)
+            try {
+              bubble?.remove()
+              doc.documentElement.style.zoom = ''
+            } catch (_error) {
+              // 面板已销毁时忽略。
+            }
+          }
+        } catch (_error) {
+          // 跨源或面板未就绪时放弃，不影响原功能。
+        }
+      }
+      iframe.addEventListener('load', attach)
+      if (iframe.contentDocument?.readyState === 'complete') attach()
+      return () => {
+        iframe.removeEventListener('load', attach)
+        cleanup?.()
+      }
+    }
+
+    function PanelFrame({ reloadToken }) {
+      const ref = React.useRef(null)
+      React.useEffect(() => {
+        const iframe = ref.current
+        if (!iframe) return undefined
+        return installPanelZoom(iframe)
+      }, [reloadToken])
+      return h('iframe', {
+        ref,
+        src: '/webchat/',
+        title: 'DeepSeek 网页版',
+        allow: 'clipboard-write; microphone',
+        style: { width: '100%', height: '100%', border: 'none', display: 'block', background: '#fff' },
+      })
+    }
 
     /** 左侧面板：完整的网页版，带它自己的会话列表。 */
     function Panel() {
@@ -91,7 +303,7 @@ window.__ModuleLoader__.load({
         return () => importBus.listeners.delete(listener)
       }, [])
       return h('div', { style: { height: '100%', minHeight: 320, display: 'flex' } },
-        h('div', { style: { flex: 1, minWidth: 0 } }, frame(token, '/webchat/', 'DeepSeek 网页版')))
+        h('div', { style: { flex: 1, minWidth: 0 } }, h(PanelFrame, { key: token, reloadToken: token })))
     }
 
     /** 会话菜单里的图标：一个"导入到托盘"的线性图标，风格对齐宿主其它条目。 */
