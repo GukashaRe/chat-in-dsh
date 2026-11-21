@@ -10,6 +10,7 @@ node --test test/protocol.test.js test/dsh-import.test.js test/frontend-compat.t
 
 - `test/protocol.test.js`：端点根、令牌头、路径越界
 - `test/dsh-import.test.js`：DSH 日志解析、导入暂存与 `importId` ACK 匹配
+- `test/frontend-compat.test.js`：扫描已打补丁的 vendor 源码和 `webview/dist`，禁止旧内核不支持的 ES2023 数组方法；CI 也执行这一项
 
 新增可自动化的逻辑时，优先补对应 `test/*.test.js`，不要先在文档里写一套“让 Agent 自己看”的验收标准。
 
