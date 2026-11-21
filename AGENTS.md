@@ -39,7 +39,7 @@
 ## 命令
 
 ```bash
-node --test test/protocol.test.js test/dsh-import.test.js
+node --test test/protocol.test.js test/dsh-import.test.js test/frontend-compat.test.js
 pwsh scripts/build-webview.ps1     # fetch 上游、应用补丁、构建、同步 webview/dist
 ```
 
@@ -72,7 +72,7 @@ pwsh scripts/build-webview.ps1     # fetch 上游、应用补丁、构建、同�
 
 最小自动化基线：
 
-- `node --test test/protocol.test.js test/dsh-import.test.js`
+- `node --test test/protocol.test.js test/dsh-import.test.js test/frontend-compat.test.js`
 - `GET /webchat/api/self-test`：入口页、静态资源、一次真实生成三项全绿
 - `npm pack --dry-run`：入口文件和 `webview/dist` 都在包内
 

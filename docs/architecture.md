@@ -52,6 +52,15 @@
   - 未打开会话改名失败进入待重试队列。
 - ZIP 导入/导出/清空与待导入共用 Web Locks，防止多个同源面板同时提交暂存。
 
+## 旧内核与导入状态
+
+- DSH Go / Android WebView 可能停留在 Chromium 110 之前。前端源码不得使用 ES2023 的
+  `Array.prototype.toSorted` / `toReversed`，改用 `slice().sort()` / `slice().reverse()`。
+- 设置页的导入 hook 挂在 `SettingsDialog`，关闭设置不会卸载导入任务；读取中显示「正在导入历史对话…」，
+  结果在重新打开设置后仍可见，避免用户以为点了没反应而重复操作。
+- 导入错误按原因区分：归档格式/版本错误用 `BackupError.key`；`QuotaExceededError` 提示存储空间不足；
+  `NotReadableError` 提示重新选择 ZIP；未知错误用中性重试提示。不要把具体对话内容写进错误。
+
 ## 前端构建
 
 上游前端不能用“直接改 vendor”作为交付方式。流程固定：

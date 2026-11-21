@@ -5,7 +5,7 @@
 ## 自动化
 
 ```bash
-node --test test/protocol.test.js test/dsh-import.test.js
+node --test test/protocol.test.js test/dsh-import.test.js test/frontend-compat.test.js
 ```
 
 - `test/protocol.test.js`：端点根、令牌头、路径越界
@@ -25,6 +25,9 @@ node --test test/protocol.test.js test/dsh-import.test.js
 - 真实 DSH 桌面/Go 宿主里的视觉效果和交互
 - 真实 DeepSeek 服务的端到端对话
 - 浏览器原生能力（截图粘贴、页面缩放等）
+- 旧内核 ZIP 导入：Chromium 109，或初始化时删除 `Array.prototype.toSorted` / `toReversed`，
+  用合规 v3 ZIP 走设置页导入；覆盖读取中关闭设置再打开、格式/版本错误、`NotReadableError`、
+  `QuotaExceededError` 和未知错误
 - 最终包安装后的发布前 smoke
 
 发布前由维护者/用户本地安装最终包确认核心流程，具体发布门槛见 [release.md](release.md)。
