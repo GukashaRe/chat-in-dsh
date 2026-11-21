@@ -5,12 +5,13 @@
 ## 自动化
 
 ```bash
-node --test test/protocol.test.js test/dsh-import.test.js test/frontend-compat.test.js
+npm test
 ```
 
 - `test/protocol.test.js`：端点根、令牌头、路径越界
 - `test/dsh-import.test.js`：DSH 日志解析、导入暂存与 `importId` ACK 匹配
 - `test/frontend-compat.test.js`：扫描已打补丁的 vendor 源码和 `webview/dist`，禁止旧内核不支持的 ES2023 数组方法；CI 也执行这一项
+- `test/client-menu.test.js`：新旧宿主的导入菜单、菜单服务晚启动与卸载、导入失败后的重试
 
 新增可自动化的逻辑时，优先补对应 `test/*.test.js`，不要先在文档里写一套“让 Agent 自己看”的验收标准。
 
@@ -24,6 +25,7 @@ node --test test/protocol.test.js test/dsh-import.test.js test/frontend-compat.t
 只有自动化覆盖不了的场景才留给人工：
 
 - 真实 DSH 桌面/Go 宿主里的视觉效果和交互
+- DSH 桌面兼容：在 `0.1.7-alpha.1`、`0.2.0-rc.2`、`0.2.1-rc.4` 和 `0.2.2-rc.5` 检查安装、登录后发消息和会话导入；新版检查菜单、键盘与通知
 - 真实 DeepSeek 服务的端到端对话
 - 浏览器原生能力（截图粘贴、页面缩放等）
 - 旧内核 ZIP 导入：Chromium 109，或初始化时删除 `Array.prototype.toSorted` / `toReversed`，

@@ -333,8 +333,44 @@ window.__ModuleLoader__.load({
       })
     }
 
+    const IMPORT_LABEL = '导入到网页版'
+    const IMPORT_FAILURE = '导入失败'
+
+    function registerLegacyImport(ctx, importSession) {
+      const name = 'sidebar.workspaces.session.menu.item'
+      return ctx.slots.inject(name, () => {
+        const { MenuItemButton } = require('@deepseek-ai/dsh-client-ui-primitives')
+
+        function ImportRow({ sessionId, useMenuOpenState }) {
+          const [, setMenuOpen] = useMenuOpenState()
+          const [status, setStatus] = React.useState('idle')
+          const inFlight = React.useRef(false)
+
+          async function onSelect() {
+            if (inFlight.current) return
+            inFlight.current = true
+            setStatus('pending')
+            try {
+              await importSession(sessionId, () => setMenuOpen(false))
+            } catch {
+              setStatus('failed')
+            } finally {
+              inFlight.current = false
+            }
+          }
+
+          let label = IMPORT_LABEL
+          if (status === 'pending') label = '正在导入…'
+          if (status === 'failed') label = '导入失败，点击重试'
+          return h(MenuItemButton, { disabled: status === 'pending', onSelect }, label)
+        }
+
+        return ctx.slots.register({ name, id: 'chat-in-dsh:import', order: 10 }, ImportRow)
+      })
+    }
+
     return {
-      inject: ['slots', 'layout', 'contextMenus'],
+      inject: ['slots', 'layout'],
       apply(ctx) {
         installMicBridge()
         const stopAvatar = publishUserAvatar()
@@ -351,34 +387,63 @@ window.__ModuleLoader__.load({
           label: '网页版',
         }, PanelIcon)), 'webchat.panellist')
 
-        ctx.effect(() => ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({
-          name: 'contextMenu.icon',
-          key: 'chat-in-dsh',
-        }, ImportIcon)), 'webchat.import-icon')
-        // 会话菜单：注册成正规条目，样式、键盘操作、选中后收起都交给宿主。
-        ctx.effect(() => ctx.contextMenus.register({
-          id: 'chat-in-dsh',
-          target: 'session',
-          order: 10,
-          resolve: (target) => [{
-            id: 'chat-in-dsh:import',
-            label: '导入到网页版',
-            icon: { key: 'chat-in-dsh' },
-            afterContent: true,
-            run: async () => {
-              const response = await fetch('/webchat/api/import/stage', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ sessionId: String(target.sessionId) }),
-              })
-              if (!response.ok) throw new Error(`stage failed: ${response.status}`)
-              notifyImported()
-              ctx.layout.selectPanel('chat-in-dsh')
-              ctx.contextMenus.notify('已导入到网页版', true)
-            },
-            failureLabel: '导入失败',
-          }],
-        }), 'webchat.import')
+        async function importSession(sessionId, closeMenu) {
+          const response = await fetch('/webchat/api/import/stage', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ sessionId: String(sessionId) }),
+          })
+          if (!response.ok) throw new Error(`stage failed: ${response.status}`)
+          closeMenu?.()
+          notifyImported()
+          ctx.layout.selectPanel('chat-in-dsh')
+        }
+
+        ctx.effect(() => {
+          let active = true
+          let stopLegacy
+          const mountLegacy = () => {
+            if (!active || stopLegacy || ctx.get('contextMenus')) return
+            stopLegacy = registerLegacyImport(ctx, importSession)
+          }
+          const unmountLegacy = () => {
+            stopLegacy?.()
+            stopLegacy = undefined
+          }
+
+          // 独立注入菜单服务，服务稍后就绪时也能切换到原生菜单。
+          ctx.inject(['slots', 'contextMenus'], (menuCtx) => {
+            unmountLegacy()
+            menuCtx.effect(() => menuCtx.slots.inject('contextMenu.icon', () => menuCtx.slots.register({
+              name: 'contextMenu.icon',
+              key: 'chat-in-dsh',
+            }, ImportIcon)), 'webchat.import-icon')
+            menuCtx.effect(() => menuCtx.contextMenus.register({
+              id: 'chat-in-dsh',
+              target: 'session',
+              order: 10,
+              resolve: (target) => [{
+                id: 'chat-in-dsh:import',
+                label: IMPORT_LABEL,
+                icon: { key: 'chat-in-dsh' },
+                afterContent: true,
+                run: async () => {
+                  await importSession(target.sessionId)
+                  menuCtx.contextMenus.notify('已导入到网页版', true)
+                },
+                failureLabel: IMPORT_FAILURE,
+              }],
+            }), 'webchat.import')
+            // 等 Cordis 完成服务卸载，再检查旧菜单是否需要回来。
+            menuCtx.effect(() => () => queueMicrotask(mountLegacy), 'webchat.restore-legacy-menu')
+          })
+
+          mountLegacy()
+          return () => {
+            active = false
+            unmountLegacy()
+          }
+        }, 'webchat.import-menu')
 
         ctx.effect(() => () => {
           if (window.__dshPanelMic !== undefined) delete window.__dshPanelMic
