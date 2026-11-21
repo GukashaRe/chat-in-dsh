@@ -1,0 +1,75 @@
+# 架构与工程链路
+
+## 组件
+
+| 层 | 文件 | 职责 |
+|---|---|---|
+| 宿主入口 | `index.js` | 注册 `/webchat` 前缀路由（必须用 `handler`，`resource` 只接 GET/HEAD） |
+| 宿主路由 | `src/webview.js` | 静态产物、自检、导入接口、Messages/Files 转发、TTS/ASR 转发 |
+| 协议约定 | `src/protocol.js` | 端点根、令牌头、路径越界判断；纯函数，有测试 |
+| 导入解析 | `src/dsh-import.js` | 只读解析 DSH 会话日志 → chat-demo 会话；暂存与确认；有测试 |
+| 界面壳 | `client.js` | 左侧面板槽位、iframe、会话右键菜单、麦克风/头像桥 |
+| 前端产物 | `webview/dist` | chat-demo v0.1.3 构建产物，随仓库分发 |
+| 上游补丁 | `webview/patches/0001-dsh-integration.patch` | 对 chat-demo 的全部改动 |
+
+上游基准：`8ad7b56e196b87d8a3215dc09476d6d146ad3f0e`（chat-demo v0.1.3，MIT）。
+
+## 请求链路
+
+1. 浏览器只访问同源宿主 `/webchat/*`，不持有 DeepSeek 凭据。
+2. 宿主把 `/webchat/anthropic/v1/messages` 转发到官方 Messages：
+   - 优先 DSH 账户令牌（`x-dsh-auth-token`）
+   - 没有账户令牌时用 DSH 模型设置里的 API Key（`x-api-key`）
+3. 附件走 `/webchat/anthropic/v1/files`：
+   - 只有官方端点（hostname `api.deepseek.com`）改走 Files API 根路径 `/files`
+   - 自定义兼容网关保留原 `/anthropic/v1/files`
+   - 图片表单带 `purpose=user_data`，但仍先做客户端预缩放
+   - 100MB 级上传必须流式转发，不能整包读内存
+4. TTS/ASR 都经宿主 `/webchat/v1/tools/*` 转发，浏览器不接触凭据。
+
+## 长文档链路
+
+- 官方 API 的扩展模式（请求里带 `safety_check`、`tools`、`title` 任一）限制输入 32k tokens。
+- 前端命中 400 `user input too long ... max 32768` 时：
+  1. 去掉扩展字段，用普通模式带完整附件/历史重发；
+  2. 回答完成后单独发一个小标题请求（提问 + 文件名 + 粘贴原文截断 + 主回复摘要）。
+- 普通短消息仍走扩展模式，不主动降级。
+- 服务端仍有 20 文档引用、8MiB 文档文字、1M 上下文硬限制；前端不能绕过。
+
+## 存储与导入
+
+- 主数据库：chat-demo IndexedDB，**保持 v11**，不要无必要升级。
+- 导入回执：独立数据库 `chat-demo-import-receipts`，避免主库升级阻塞多个面板。
+- 导入操作：
+  - 每次主动导入一个 `importId`；
+  - 回执先 pending，会话保存成功后 done；
+  - ACK 按 `importId` 精确匹配，旧/无标识确认不能删新暂存；
+  - 已有本地会话时只做前缀更新/追加，本地续聊、分支、标题、置顶优先保留；
+  - ZIP 导出/回导保留消息原始 ID，以便之后继续从 DSH 导入。
+- 保存失败：
+  - 连接失效先重开连接并补存一次；
+  - 手动「重试」先丢弃失效句柄；
+  - 未打开会话改名失败进入待重试队列。
+- ZIP 导入/导出/清空与待导入共用 Web Locks，防止多个同源面板同时提交暂存。
+
+## 前端构建
+
+上游前端不能用“直接改 vendor”作为交付方式。流程固定：
+
+```bash
+cd webview/vendor/chat-demo
+git add -A
+git diff --cached --binary --output=../../patches/0001-dsh-integration.patch
+git reset
+
+cd ../../..
+pwsh scripts/build-webview.ps1
+```
+
+`scripts/build-webview.ps1` 会 fetch 上游、`git reset --hard`、`git clean -fd` 再应用补丁，最后构建并同步 `webview/dist`。只改 `webview/dist` 或 `client.js` 时通常刷新页面即可；宿主 `index.js` / `src/*` 改动需要重新安装插件。
+
+## 测试
+
+- 宿主纯函数：`node --test test/protocol.test.js test/dsh-import.test.js`
+- 系统自检与人工 gate：见 [testing.md](testing.md)
+- 发布门槛与版本策略：见 [release.md](release.md)
