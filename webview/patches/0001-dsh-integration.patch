@@ -5169,7 +5169,7 @@ index 0d28fa5..3fb5578 100644
    }
    const { text, files } = prepared
 +  // 切换分支后草稿附件与当前可见分支可能叠加超过上限，发送时做最终校验。
-+  if ((targetSessionId === null ? 0 : countSessionFiles(targetSessionId)) + files.length > MAX_COUNT) {
++  if (files.length > 0 && (targetSessionId === null ? 0 : countSessionFiles(targetSessionId)) + files.length > MAX_COUNT) {
 +    return false
 +  }
    const now = Date.now()
